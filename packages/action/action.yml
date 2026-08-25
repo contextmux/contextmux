@@ -1,0 +1,176 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: contextmux
+description: Drive tasks to pull requests under gates, and feed reviews back to the agent.
+author: contextmux
+
+inputs:
+  command:
+    description: 'What to do: run, event, check, doctor, sync, learn, or state.'
+    required: true
+    default: run
+  args:
+    description: >-
+      Extra arguments passed through verbatim, for anything the typed inputs above do not
+      cover — `--targets claude,cursor`, `--minimal`, `--explain`.
+    required: false
+  share-state:
+    description: >-
+      Pull shared run state before the command and push it after. Run records live in
+      .ctxmux/state/, which is not committed — so without this a workflow reacting to a review
+      cannot see the run that a different workflow dispatched.
+    required: false
+    default: 'false'
+  state-branch:
+    description: 'Branch the shared state lives on.'
+    required: false
+    default: ctxmux-state
+  task:
+    description: 'Task id or description, for `run`.'
+    required: false
+  agent:
+    description: 'Agent to use: claude or copilot.'
+    required: false
+    default: copilot
+  tracker:
+    description: 'Where tasks come from: file, github, or jira.'
+    required: false
+    default: file
+  repo:
+    description: 'owner/repo. Defaults to the repository running the workflow.'
+    required: false
+  allow:
+    description: 'Comma-separated globs the agent may modify.'
+    required: false
+  deny:
+    description: 'Comma-separated globs it must not modify.'
+    required: false
+  max-rounds:
+    description: 'Self-correction rounds before escalating.'
+    required: false
+    default: '2'
+  dry-run:
+    description: 'Report what would happen without dispatching or writing.'
+    required: false
+    default: 'false'
+  github-token:
+    description: >-
+      Token for issues and pull requests. Prefer a GitHub App installation token over a PAT:
+      it is short-lived, scoped to this repository, and does not expire silently.
+    required: false
+  jira-url:
+    description: 'Jira base URL, for the jira tracker.'
+    required: false
+  jira-email:
+    description: 'Jira account email.'
+    required: false
+  jira-token:
+    description: 'Jira API token.'
+    required: false
+  anthropic-api-key:
+    description: 'API key for the claude agent.'
+    required: false
+
+outputs:
+  state:
+    description: 'Terminal state of the run: in_review, completed, rejected, escalated or failed.'
+    value: ${{ steps.contextmux.outputs.state }}
+  pull-request:
+    description: 'URL of the pull request, when one was produced.'
+    value: ${{ steps.contextmux.outputs.pull-request }}
+  files-changed:
+    description: 'Number of files the agent changed.'
+    value: ${{ steps.contextmux.outputs.files-changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Run contextmux
+      id: contextmux
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+        JIRA_URL: ${{ inputs.jira-url }}
+        JIRA_EMAIL: ${{ inputs.jira-email }}
+        JIRA_API_TOKEN: ${{ inputs.jira-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        CTXMUX_REPO: ${{ inputs.repo || github.repository }}
+        CTXMUX_AGENT: ${{ inputs.agent }}
+        CTXMUX_TRACKER: ${{ inputs.tracker }}
+      run: |
+        set -euo pipefail
+
+        # The CLI ships with this action as a single committed file, and is run directly.
+        #
+        # It was previously fetched from the npm registry at run time, which meant a workflow
+        # pinned to `@v0` could execute whatever version happened to be published, the step
+        # needed the registry reachable, and every invocation paid for an install. Running the
+        # committed bundle means the code that runs is the code at the ref the workflow pinned.
+        # `pnpm bundle:check` keeps that file in step with source.
+        ctxmux() { node "$GITHUB_ACTION_PATH/dist/ctxmux.mjs" "$@"; }
+
+        if [[ ! -f "$GITHUB_ACTION_PATH/dist/ctxmux.mjs" ]]; then
+          echo "::error::contextmux bundle missing at $GITHUB_ACTION_PATH/dist/ctxmux.mjs." \
+               "Pin a ref built from a commit that includes it." >&2
+          exit 1
+        fi
+
+        # Shared state has to arrive before the command that needs it.
+        if [[ "${{ inputs.share-state }}" == "true" ]]; then
+          ctxmux state pull --branch "${{ inputs.state-branch }}" || true
+        fi
+
+        args=("${{ inputs.command }}")
+        [[ -n "${{ inputs.task }}" ]]       && args+=("${{ inputs.task }}")       || true
+        [[ -n "${{ inputs.allow }}" ]]      && args+=(--allow "${{ inputs.allow }}") || true
+        [[ -n "${{ inputs.deny }}" ]]       && args+=(--deny "${{ inputs.deny }}")   || true
+        [[ -n "${{ inputs.max-rounds }}" ]] && args+=(--max-rounds "${{ inputs.max-rounds }}") || true
+        [[ "${{ inputs.dry-run }}" == "true" ]] && args+=(--dry-run) || true
+        [[ -n "${{ inputs.args }}" ]] && read -r -a extra <<< "${{ inputs.args }}" && args+=("${extra[@]}") || true
+
+        # `run` reports itself as one JSON line on stdout under --json. Parsing that rather
+        # than the human report matters: the report is written for someone reading a terminal,
+        # and every message reworded for clarity used to break this silently.
+        [[ "${{ inputs.command }}" == "run" ]] && args+=(--json) || true
+
+        # Exit 3 (gates rejected) and 4 (escalated to a human) are outcomes, not failures. A
+        # workflow should be able to branch on them without the job going red.
+        set +e
+        ctxmux "${args[@]}" > /tmp/contextmux-out.txt 2> /tmp/contextmux-err.txt
+        code=$?
+        set -e
+
+        cat /tmp/contextmux-err.txt >&2
+        cat /tmp/contextmux-out.txt
+
+        if [[ "${{ inputs.command }}" == "run" ]]; then
+          summary=$(tail -1 /tmp/contextmux-out.txt)
+          read_field() { printf '%s' "$summary" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+              try { const o=JSON.parse(d); const v=o[process.argv[1]]; process.stdout.write(v==null?'':String(v)) }
+              catch { process.stdout.write('') }
+            })" "$1"; }
+
+          {
+            echo "state=$(read_field state)"
+            echo "pull-request=$(read_field pullRequest)"
+            echo "files-changed=$(read_field filesChanged)"
+          } >> "$GITHUB_OUTPUT"
+        fi
+
+        # Push whatever the command recorded, so the next job can see it. After the outputs
+        # are set, and never allowed to change the job's verdict.
+        if [[ "${{ inputs.share-state }}" == "true" ]]; then
+          ctxmux state push --branch "${{ inputs.state-branch }}" || \
+            echo "::warning::could not push shared state; the next workflow will not see this run"
+        fi
+
+        if [[ $code -eq 3 || $code -eq 4 ]]; then
+          echo "::notice::contextmux finished with a non-success outcome (exit ${code}); see the log."
+          exit 0
+        fi
+        exit $code

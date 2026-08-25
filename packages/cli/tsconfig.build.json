@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declarationMap": false,
+    "incremental": false
+  },
+  "references": []
+}

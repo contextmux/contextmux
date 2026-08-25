@@ -1,0 +1,21 @@
+node_modules/
+dist/
+# The Action runs this committed bundle instead of installing from a registry, so it is
+# deliberately tracked. `pnpm bundle:check` fails CI if it drifts from source.
+!packages/action/dist/
+!packages/action/dist/ctxmux.mjs
+*.tsbuildinfo
+.DS_Store
+coverage/
+.ctxmux/cache/
+.ctxmux/state/
+*.log
+.env
+.env.*
+!.env.example
+
+# tsc -b output; the published build comes from tsup
+.tsbuild/
+
+# Copied from the root at pack time so npm has a page to show.
+packages/cli/README.md

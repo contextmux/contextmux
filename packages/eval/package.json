@@ -1,0 +1,47 @@
+{
+  "name": "@contextmux/eval",
+  "version": "0.2.0",
+  "description": "Run one task through several agents and compare them",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@contextmux/core": "workspace:*",
+    "@contextmux/runner-local": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contextmux/contextmux.git",
+    "directory": "packages/eval"
+  },
+  "homepage": "https://github.com/contextmux/contextmux#readme",
+  "bugs": {
+    "url": "https://github.com/contextmux/contextmux/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "contextmux"
+  ]
+}

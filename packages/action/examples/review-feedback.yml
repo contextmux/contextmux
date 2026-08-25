@@ -1,0 +1,39 @@
+# Feed pull request reviews back into the run.
+#
+# One review carrying several inline comments fires this workflow several times. contextmux
+# coalesces the burst and dedupes redeliveries, so a single review consumes one revision
+# round rather than one per comment.
+
+name: Review feedback
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  # Collapse the burst from one review into a single run of this workflow.
+  group: contextmux-feedback-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  # write, because shared run state is pushed to its own branch — see `share-state`.
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  feedback:
+    if: vars.CTXMUX_ENABLED != 'false' && !endsWith(github.actor, '[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: contextmux/contextmux/packages/action@v0
+        with:
+          command: event
+          # Without this the job runs in a fresh checkout, finds no run for the pull request,
+          # and the reviewer's feedback reaches nobody.
+          share-state: 'true'
+          github-token: ${{ secrets.CTXMUX_TOKEN }}

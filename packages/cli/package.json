@@ -1,0 +1,76 @@
+{
+  "name": "contextmux",
+  "version": "0.2.0",
+  "description": "Compile one context source to every coding agent, and run tasks through them under gates.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b",
+    "prepack": "node -e \"require('node:fs').copyFileSync('../../README.md','README.md')\""
+  },
+  "bin": {
+    "ctxmux": "./dist/index.js",
+    "contextmux": "./dist/index.js"
+  },
+  "dependencies": {
+    "@contextmux/context": "workspace:*",
+    "@contextmux/repo": "workspace:*",
+    "@contextmux/core": "workspace:*",
+    "@contextmux/agent-claude": "workspace:*",
+    "@contextmux/runner-local": "workspace:*",
+    "@contextmux/tracker-file": "workspace:*",
+    "@contextmux/agent-copilot": "workspace:*",
+    "@contextmux/forge-github": "workspace:*",
+    "@contextmux/tracker-github": "workspace:*",
+    "@contextmux/tracker-jira": "workspace:*",
+    "@contextmux/agent-cursor": "workspace:*",
+    "@contextmux/agent-codex": "workspace:*",
+    "@contextmux/eval": "workspace:*",
+    "@contextmux/learn": "workspace:*",
+    "@contextmux/trajectory": "workspace:*",
+    "@contextmux/handoff": "workspace:*",
+    "@contextmux/agent-local": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contextmux/contextmux.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/contextmux/contextmux#readme",
+  "bugs": {
+    "url": "https://github.com/contextmux/contextmux/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "claude",
+    "claude-code",
+    "github-copilot",
+    "cursor",
+    "codex",
+    "agents-md",
+    "claude-md",
+    "context",
+    "prompt",
+    "code-review",
+    "automation",
+    "jira"
+  ]
+}

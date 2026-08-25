@@ -1,0 +1,28 @@
+{
+  // Shared compiler settings. Two things here are deliberate and easy to "tidy" back into bugs:
+  //
+  // Packages set `outDir: .tsbuild`, never `dist`. `dist` belongs to tsup, which cleans it and
+  // writes one bundle; a `tsc` emit into the same directory scattered per-file output beside it
+  // and whichever ran last won, which could publish a broken bundle.
+  //
+  // Nothing runs `tsc -b` anymore — `pnpm typecheck` is a single `--noEmit` pass from the root
+  // that resolves workspace imports to source. See the comment in `tsconfig.json`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  }
+}

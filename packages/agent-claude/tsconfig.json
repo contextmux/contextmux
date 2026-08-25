@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": ".tsbuild"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../context"
+    },
+    {
+      "path": "../repo"
+    },
+    {
+      "path": "../runner-local"
+    },
+    {
+      "path": "../agent-cli"
+    }
+  ]
+}

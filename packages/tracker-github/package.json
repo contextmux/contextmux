@@ -1,0 +1,47 @@
+{
+  "name": "@contextmux/tracker-github",
+  "version": "0.2.0",
+  "description": "GitHub Issues as an contextmux tracker",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@contextmux/core": "workspace:*",
+    "@contextmux/forge-github": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contextmux/contextmux.git",
+    "directory": "packages/tracker-github"
+  },
+  "homepage": "https://github.com/contextmux/contextmux#readme",
+  "bugs": {
+    "url": "https://github.com/contextmux/contextmux/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "contextmux"
+  ]
+}

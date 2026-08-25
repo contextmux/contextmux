@@ -1,0 +1,50 @@
+# Drive Jira tickets to pull requests, and feed reviews back to the agent.
+#
+# Two workflows, deliberately: picking up work and reacting to review are different triggers
+# with different permissions, and combining them means the review path inherits write access
+# it does not need.
+
+name: Jira to pull request
+
+on:
+  schedule:
+    - cron: '0 */2 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Ticket key. Leave empty to take the next eligible one.'
+        required: false
+
+concurrency:
+  # Serialise, so two runs cannot pick up the same ticket.
+  group: contextmux-${{ inputs.task || 'batch' }}
+  cancel-in-progress: false
+
+permissions:
+  # write, because shared run state is pushed to its own branch — see `share-state`.
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    # A kill switch that does not require editing a workflow to use.
+    if: vars.CTXMUX_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: contextmux/contextmux/packages/action@v0
+        with:
+          command: run
+          share-state: 'true'
+          task: ${{ inputs.task }}
+          tracker: jira
+          agent: copilot
+          allow: 'src/**,test/**'
+          max-rounds: '2'
+          github-token: ${{ secrets.CTXMUX_TOKEN }}
+          jira-url: ${{ secrets.JIRA_URL }}
+          jira-email: ${{ secrets.JIRA_EMAIL }}
+          jira-token: ${{ secrets.JIRA_API_TOKEN }}

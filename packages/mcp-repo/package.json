@@ -1,0 +1,51 @@
+{
+  "name": "@contextmux/mcp-repo",
+  "version": "0.2.0",
+  "description": "MCP server exposing an contextmux repository index as tools",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b"
+  },
+  "bin": {
+    "contextmux-mcp-repo": "./dist/index.js"
+  },
+  "dependencies": {
+    "@contextmux/repo": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "zod": "^3.25.76"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contextmux/contextmux.git",
+    "directory": "packages/mcp-repo"
+  },
+  "homepage": "https://github.com/contextmux/contextmux#readme",
+  "bugs": {
+    "url": "https://github.com/contextmux/contextmux/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "contextmux"
+  ]
+}

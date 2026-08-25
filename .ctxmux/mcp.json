@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "ctxmux-repo": {
+      "transport": "stdio",
+      "command": "node",
+      "args": ["packages/mcp-repo/dist/index.js"],
+      "readOnly": true
+    }
+  }
+}

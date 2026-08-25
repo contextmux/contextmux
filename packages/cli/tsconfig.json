@@ -1,0 +1,66 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": ".tsbuild"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../context"
+    },
+    {
+      "path": "../repo"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../forge-github"
+    },
+    {
+      "path": "../agent-cli"
+    },
+    {
+      "path": "../agent-claude"
+    },
+    {
+      "path": "../agent-copilot"
+    },
+    {
+      "path": "../agent-cursor"
+    },
+    {
+      "path": "../agent-codex"
+    },
+    {
+      "path": "../runner-local"
+    },
+    {
+      "path": "../tracker-file"
+    },
+    {
+      "path": "../tracker-github"
+    },
+    {
+      "path": "../tracker-jira"
+    },
+    {
+      "path": "../eval"
+    },
+    {
+      "path": "../learn"
+    },
+    {
+      "path": "../trajectory"
+    },
+    {
+      "path": "../handoff"
+    },
+    {
+      "path": "../agent-local"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "contextmux-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit --pretty",
+    "clean": "rm -rf packages/*/dist packages/*/.tsbuild packages/*/*.tsbuildinfo *.tsbuildinfo",
+    "bundle": "node scripts/bundle.mjs",
+    "bundle:check": "node scripts/bundle.mjs --check"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.27.7",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

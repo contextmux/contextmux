@@ -1,0 +1,47 @@
+{
+  "name": "@contextmux/context",
+  "version": "0.2.0",
+  "description": "Canonical agent-context model and compilers for Claude Code, Copilot, Cursor and Codex",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contextmux/contextmux.git",
+    "directory": "packages/context"
+  },
+  "homepage": "https://github.com/contextmux/contextmux#readme",
+  "bugs": {
+    "url": "https://github.com/contextmux/contextmux/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "contextmux"
+  ]
+}

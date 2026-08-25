@@ -1,0 +1,27 @@
+{
+  // Typechecking only. It emits nothing and resolves every workspace import straight to
+  // source, so it depends on no build output and cannot race the bundler.
+  //
+  // It used to be a `tsc -b` project-reference build, which had two problems. It wrote
+  // JavaScript into the same `dist/` that tsup bundles into, so whichever ran last won and the
+  // published bundle could end up incomplete. And moving that output elsewhere to fix it broke
+  // resolution entirely on a clean checkout, because each package's `types` field points at
+  // `dist/` — which does not exist until something has built it. CI found that; a machine with
+  // a stale `dist/` lying around never would.
+  //
+  // Resolving to source also means this checks exactly what the tests run: `vitest.config.ts`
+  // aliases the same paths to the same files.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@contextmux/*": ["packages/*/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "vitest.config.ts"]
+}

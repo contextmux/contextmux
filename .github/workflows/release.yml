@@ -30,10 +30,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
+      # No `registry-url`. It makes setup-node write an .npmrc containing
+      # `_authToken=${NODE_AUTH_TOKEN}`, which nothing here sets — publishing is over OIDC — so
+      # every pnpm command warns about failing to expand a variable that should not exist.
+      # npm publishes to registry.npmjs.org by default anyway.
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
           cache: pnpm
 
       # OIDC publishing landed in npm 11.5.1; the bundled npm is not always newer than that.

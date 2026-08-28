@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/core",
-  "version": "0.2.1",
-  "description": "Agent-neutral task orchestration: state machine, gates, policy",
+  "version": "0.2.2",
+  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides agent-neutral task orchestration: state machine, gates, policy.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -37,8 +37,6 @@
     "url": "https://github.com/contextmux/contextmux/issues"
   },
   "keywords": [
-    "ai",
-    "coding-agent",
     "contextmux"
   ]
 }

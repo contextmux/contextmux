@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/runner-local",
-  "version": "0.2.1",
-  "description": "Local process runner with git worktree isolation for contextmux",
+  "version": "0.2.2",
+  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides local process runner with git worktree isolation for contextmux.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,8 +39,6 @@
     "url": "https://github.com/contextmux/contextmux/issues"
   },
   "keywords": [
-    "ai",
-    "coding-agent",
     "contextmux"
   ]
 }

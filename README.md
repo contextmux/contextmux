@@ -45,7 +45,7 @@ generated for tools you do not use.
 
 This half stands alone: no key, no agent, no cost — it only touches files.
 
-→ **[Getting started](#getting-started)** · [Run a task](#path-b--run-a-task) · [How compiling works](#how-the-compiling-works)
+→ **[Getting started](#getting-started)** · [Run a task](#running-a-task) · [How compiling works](#how-the-compiling-works)
 
 ---
 
@@ -143,7 +143,7 @@ git checkout . && git clean -fd      # as if nothing happened
 ```
 
 That is the whole context compiler, and for most people it is the whole tool. To hand a task to
-an agent under gates, carry on to [Path B](#path-b--run-a-task).
+an agent under gates, carry on to [Running a task](#running-a-task).
 
 ---
 
@@ -182,7 +182,7 @@ the tool.
 
 ---
 
-## Path B — Run a task
+## Running a task
 
 Everything here is reversible. The agent works in a git worktree, never your checkout, and
 `--dry-run` spends nothing.

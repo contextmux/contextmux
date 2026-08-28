@@ -1,7 +1,7 @@
 {
   "name": "contextmux",
-  "version": "0.2.1",
-  "description": "Compile one context source to every coding agent, and run tasks through them under gates.",
+  "version": "0.2.2",
+  "description": "Compile one source of coding rules to CLAUDE.md, AGENTS.md, .cursor/rules and copilot-instructions \u2014 then run tasks through an agent under gates.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -59,18 +59,22 @@
   },
   "keywords": [
     "ai",
+    "ai-agent",
     "coding-agent",
     "claude",
     "claude-code",
+    "claude-md",
     "github-copilot",
+    "copilot-instructions",
     "cursor",
+    "cursor-rules",
     "codex",
     "agents-md",
-    "claude-md",
-    "context",
-    "prompt",
+    "mcp",
     "code-review",
+    "pull-request",
     "automation",
-    "jira"
+    "jira",
+    "cli"
   ]
 }

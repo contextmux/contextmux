@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/agent-claude",
-  "version": "0.2.1",
-  "description": "Driven Claude Code agent adapter for contextmux",
+  "version": "0.2.2",
+  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides driven Claude Code agent adapter for contextmux.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -43,8 +43,6 @@
     "url": "https://github.com/contextmux/contextmux/issues"
   },
   "keywords": [
-    "ai",
-    "coding-agent",
     "contextmux"
   ]
 }

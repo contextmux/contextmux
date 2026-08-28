@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/trajectory",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Step-level recording of what an agent actually did, and what that says about it",
   "license": "Apache-2.0",
   "type": "module",

@@ -69,8 +69,10 @@ describe('init', () => {
 
     const { code, text } = await runCli(initCommand, argv(root, 'init'))
 
-    expect(code).toBe(1)
-    expect(text).toContain('already exists')
+    // Already set up is the outcome this command exists to produce, so it is not a failure —
+    // exiting 1 broke `ctxmux init && ctxmux run ...`, which is an ordinary thing to write.
+    expect(code).toBe(0)
+    expect(text).toContain('already set up')
     expect(await read(root, '.ctxmux/instructions.md')).toBe('MINE\n')
   })
 
@@ -313,6 +315,37 @@ describe('init as the only command you need', () => {
     const { code } = await runCli(initCommand, argv(repo, 'init --force --no-workflows'))
 
     expect(code).toBe(0)
+    await removeRepo(repo)
+  })
+})
+
+describe('running init twice', () => {
+  it('is not a failure, so it can be chained', async () => {
+    /*
+     * `ctxmux init && ctxmux run ...` is an ordinary thing to write, and an ordinary thing to
+     * run twice. Exiting 1 the second time broke the chain over a repository that was already
+     * in exactly the state the command exists to produce. `git init` says so and exits 0.
+     */
+    const repo = await makeRepo({ 'package.json': '{"name":"x","packageManager":"pnpm@10.0.0"}' })
+
+    const first = await runCli(initCommand, argv(repo, 'init --no-workflows'))
+    const second = await runCli(initCommand, argv(repo, 'init --no-workflows'))
+
+    expect(first.code).toBe(0)
+    expect(second.code).toBe(0)
+    expect(second.text).toContain('already set up')
+    await removeRepo(repo)
+  })
+
+  it('still leaves what is there alone', async () => {
+    // Idempotent means "does nothing", not "does it again".
+    const repo = await makeRepo({ 'package.json': '{"name":"x","packageManager":"pnpm@10.0.0"}' })
+    await runCli(initCommand, argv(repo, 'init --no-workflows'))
+    await writeAll(repo, { '.ctxmux/instructions.md': 'MINE\n' })
+
+    await runCli(initCommand, argv(repo, 'init --no-workflows'))
+
+    expect(await read(repo, '.ctxmux/instructions.md')).toBe('MINE\n')
     await removeRepo(repo)
   })
 })

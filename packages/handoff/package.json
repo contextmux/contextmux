@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/handoff",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Transfer an unfinished task between agents without transferring context",
   "license": "Apache-2.0",
   "type": "module",

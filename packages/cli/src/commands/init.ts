@@ -67,10 +67,16 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
     .catch(() => false)
 
   if (already && !force) {
-    warn('.ctxmux/ already exists — leaving it alone.')
-    info('    ' + c.dim('Re-run with --force to add any starter files that are missing.'))
-    info('    ' + c.dim('`ctxmux sync` compiles what is already there.'))
-    return 1
+    /*
+     * Already set up is the outcome this command exists to produce, so it is not a failure.
+     *
+     * Exiting 1 broke `ctxmux init && ctxmux run ...`, which is an ordinary thing to write and
+     * an ordinary thing to run twice. `git init` on an existing repository says so and exits 0
+     * for the same reason.
+     */
+    info('.ctxmux/ is already set up — leaving it alone.')
+    info('    ' + c.dim('`ctxmux sync` compiles what is there. --force adds any starter files that are missing.'))
+    return 0
   }
 
   const profile = await detectProfile(root)

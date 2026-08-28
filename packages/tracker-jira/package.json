@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/tracker-jira",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Jira as an contextmux tracker",
   "license": "Apache-2.0",
   "type": "module",

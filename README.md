@@ -64,6 +64,10 @@ Or run it without installing anything:
 npx contextmux --help
 ```
 
+> Install it **globally**, or as a `devDependency` with `npm install -D contextmux`. Plain
+> `npm install contextmux` puts a build-time tool into your application's runtime dependencies,
+> where a frontend bundler will try to ship it.
+
 <details>
 <summary>From source</summary>
 
@@ -875,6 +879,42 @@ describe('my tracker', () => {
   runTrackerContract({ it, expect }, { setup: () => ({ tracker, taskId: 'X-1' }) })
 })
 ```
+
+## What it accesses, and why
+
+A tool that drives coding agents shells out, reads credentials from the environment and writes
+to your repository. A package scanner will flag all of that, correctly, so here is the whole
+list — it is short enough to check.
+
+**It runs these programs:** `git`, and whichever agent CLI you configure (`claude`, `codex`,
+`cursor`). `gh` is used for GitHub calls when no token is set.
+
+**It contacts two hosts:** `api.github.com`, and the Jira site you configure. Nothing else.
+There is no telemetry and no hosted service.
+
+**It reads these environment variables**, by name, and no others:
+
+| Variable | Used for |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | the Claude adapter |
+| `GITHUB_TOKEN`, `GH_TOKEN` | GitHub issues and pull requests |
+| `JIRA_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | the Jira tracker |
+| `CTXMUX_REPO`, `CTXMUX_AGENT`, `CTXMUX_TRACKER` | overrides for the config file |
+| `GITHUB_REPOSITORY`, `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`, `GITHUB_REF_NAME` | supplied by the GitHub Action |
+| `CTXMUX_ROOT` | repository root, for the MCP server |
+| `OLLAMA_HOST`, `CTXMUX_LOCAL_MODEL` | the local agent adapter |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS` | optional trajectory export |
+| `NO_COLOR`, `TERM`, `CTXMUX_DEBUG` | output |
+
+**It writes** inside your repository: `.ctxmux/`, the generated agent files, and a git worktree
+under your system temp directory for isolated runs.
+
+**On the `yaml` alert.** Scanners flag `yaml` for its `reviver` and `onAnchor` callbacks, which
+can run arbitrary code if you pass untrusted ones. contextmux calls `parse(source)` with a
+single argument in both places it uses YAML, and never passes a reviver, an anchor handler or a
+custom schema — so that surface is never given anything to run.
+
+---
 
 ## Free, and free to run
 

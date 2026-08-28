@@ -1,6 +1,6 @@
 {
   "name": "contextmux",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Compile one context source to every coding agent, and run tasks through them under gates.",
   "license": "Apache-2.0",
   "type": "module",

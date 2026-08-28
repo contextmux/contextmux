@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/learn",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn what agents got wrong into proposed edits to your context",
   "license": "Apache-2.0",
   "type": "module",

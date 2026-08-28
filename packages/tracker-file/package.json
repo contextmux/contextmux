@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/tracker-file",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "File-based task specs for contextmux",
   "license": "Apache-2.0",
   "type": "module",

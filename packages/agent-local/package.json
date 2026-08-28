@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/agent-local",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Drive a locally-hosted model as a coding agent, at zero marginal cost",
   "license": "Apache-2.0",
   "type": "module",

@@ -14927,10 +14927,9 @@ async function initCommand(args) {
   const dir = path10.join(root, ".ctxmux");
   const already = await fs9.access(dir).then(() => true).catch(() => false);
   if (already && !force) {
-    warn(".ctxmux/ already exists \u2014 leaving it alone.");
-    info("    " + c.dim("Re-run with --force to add any starter files that are missing."));
-    info("    " + c.dim("`ctxmux sync` compiles what is already there."));
-    return 1;
+    info(".ctxmux/ is already set up \u2014 leaving it alone.");
+    info("    " + c.dim("`ctxmux sync` compiles what is there. --force adds any starter files that are missing."));
+    return 0;
   }
   const profile = await detectProfile(root);
   heading("Detected");
@@ -23526,7 +23525,7 @@ ${c.bold("EXAMPLES")}
   ctxmux map "add a currency formatter" --budget 3000
   ctxmux sync --targets claude,cursor
 `;
-var VERSION2 = true ? "0.2.0" : "0.0.0-dev";
+var VERSION2 = true ? "0.2.1" : "0.0.0-dev";
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (flagBool(args, "version", "v")) {

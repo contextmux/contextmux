@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/eval",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Run one task through several agents and compare them",
   "license": "Apache-2.0",
   "type": "module",

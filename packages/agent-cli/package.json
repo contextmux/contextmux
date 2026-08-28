@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/agent-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared machinery for CLI-driven coding agents",
   "license": "Apache-2.0",
   "type": "module",

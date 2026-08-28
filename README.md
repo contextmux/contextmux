@@ -4,6 +4,8 @@
 **And write those rules once, for whichever coding agents you use.**
 
 ```bash
+npm install -g contextmux          # a CLI, not a library — global, or -D
+
 ctxmux run ABC-1234 --tracker jira --agent copilot
 ```
 
@@ -944,6 +946,32 @@ quality gate that compiled the wrong working tree, a dry run that left a verdict
 agent finishing without anything noticing. The doubles were themselves wrong twice, in ways
 that hid real bugs. Treat a green suite here as weak evidence for anything that talks to a live
 service.
+
+## Releasing
+
+Tag it. Nothing else.
+
+```bash
+git tag -a v0.2.2 -m "contextmux v0.2.2"
+git push origin v0.2.2
+```
+
+`.github/workflows/release.yml` verifies, packs and publishes all twenty packages. It
+authenticates to npm over OIDC — there is no token stored in the repository, in a secret, or in
+anyone's `~/.npmrc`, and no one-time code to type twenty times.
+
+Two details worth knowing if you change it. **pnpm packs and npm publishes**: only pnpm rewrites
+`workspace:*` into real versions, and only npm speaks OIDC and can attest provenance, so each
+tool does the half it alone can do. And **the CLI publishes last**, so a run that stops partway
+leaves libraries nobody has been told to install rather than a `contextmux` whose dependencies
+are not there.
+
+The workflow refuses a tag that disagrees with the version in `package.json`.
+
+First-time setup, once per package: npmjs.com → the package → Settings → Publishing access →
+add this repository and `release.yml` as a trusted publisher.
+
+---
 
 ## Contributing
 

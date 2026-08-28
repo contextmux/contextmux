@@ -1,0 +1,99 @@
+# Publish to npm by pushing a tag, with no token stored anywhere.
+#
+# npm is withdrawing the 2FA bypass that automation tokens relied on, which made publishing
+# twenty packages mean twenty one-time codes typed by hand. Trusted publishing authenticates
+# this workflow to npm over OIDC instead: nothing to store, nothing to rotate, nothing to paste
+# into a terminal where it ends up in shell history.
+#
+# Before the first run, each package needs a trusted publisher configured on npmjs.com —
+# Settings -> Publishing access -> the repository and this workflow's filename.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  # Deliberately available by hand too: a release that failed halfway needs re-running without
+  # inventing a new tag for it.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Both the OIDC exchange and provenance attestation need this. Nothing else does.
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      # OIDC publishing landed in npm 11.5.1; the bundled npm is not always newer than that.
+      - run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+
+      # Everything that guards the published artefact, before anything is published. A release
+      # is the one place where finding out afterwards is not an option.
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm bundle:check
+
+      - name: Refuse a tag that disagrees with the version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./packages/cli/package.json').version")
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$tag" != "$pkg" ]]; then
+            echo "::error::tag v$tag does not match package version $pkg" >&2
+            exit 1
+          fi
+          echo "publishing $pkg"
+
+      - name: Publish
+        run: |
+          set -euo pipefail
+
+          # pnpm packs, npm publishes.
+          #
+          # Only pnpm rewrites `workspace:*` into real version numbers; a tarball from `npm pack`
+          # ships seventeen dependencies that no registry can resolve, and every install fails
+          # with EUNSUPPORTEDPROTOCOL. Only npm speaks OIDC and can attest provenance. So each
+          # tool does the half it is the only one able to do.
+          #
+          # The dependencies go first and the CLI last: if this stops partway, what exists is a
+          # set of libraries nobody has been told to install, rather than a `contextmux` that
+          # resolves to packages which are not there.
+          publish_one() {
+            local dir="$1"
+            local name version tarball
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "  = $name@$version already published"
+              return 0
+            fi
+
+            tarball=$(cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP" | tail -1)
+            npm publish "$tarball" --access public --provenance
+            echo "  + $name@$version"
+          }
+
+          for dir in packages/*; do
+            [[ -f "$dir/package.json" ]] || continue
+            node -e "process.exit(require('./$dir/package.json').private ? 0 : 1)" && continue
+            [[ "$(node -p "require('./$dir/package.json').name")" == "contextmux" ]] && continue
+            publish_one "$dir"
+          done
+
+          publish_one packages/cli

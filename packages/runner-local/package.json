@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/runner-local",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides local process runner with git worktree isolation for contextmux.",
   "license": "Apache-2.0",
   "type": "module",

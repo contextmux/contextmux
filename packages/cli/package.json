@@ -1,6 +1,6 @@
 {
   "name": "contextmux",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Compile one source of coding rules to CLAUDE.md, AGENTS.md, .cursor/rules and copilot-instructions \u2014 then run tasks through an agent under gates.",
   "license": "Apache-2.0",
   "type": "module",

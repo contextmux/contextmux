@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/learn",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides turn what agents got wrong into proposed edits to your context.",
   "license": "Apache-2.0",
   "type": "module",

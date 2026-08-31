@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/handoff",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides transfer an unfinished task between agents without transferring context.",
   "license": "Apache-2.0",
   "type": "module",

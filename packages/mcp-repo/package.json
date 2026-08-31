@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/mcp-repo",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides mCP server exposing an contextmux repository index as tools.",
   "license": "Apache-2.0",
   "type": "module",

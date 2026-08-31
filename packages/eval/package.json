@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/eval",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides run one task through several agents and compare them.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,0 +1,62 @@
+name: A gate got it wrong
+description: A run was blocked that should have passed, or passed something it should have blocked
+labels: [gates]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These are the most valuable reports this project gets. The gates decide what becomes a
+        pull request, so both directions are worth knowing about — and a gate that passes bad
+        work is worse than one that blocks good work.
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Which way did it go wrong
+      options:
+        - It blocked a change that was fine
+        - It passed a change that was not fine
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gate
+    attributes:
+      label: Which gate
+      options:
+        - readiness (the task was judged unworkable)
+        - complexity (the task was judged too large)
+        - path-scope (files outside the allowed globs)
+        - produced-changes (no changes detected)
+        - test-integrity (tests judged weakened)
+        - quality-gate (build, lint or tests)
+        - acceptance criteria
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What it said, and why that was wrong
+      description: >-
+        The message it gave, and what was actually true. If a gate was bypassed rather than
+        misfired, please use private reporting instead — see SECURITY.md.
+    validations:
+      required: true
+
+  - type: textarea
+    id: trace
+    attributes:
+      label: Output of `ctxmux trace <task>`
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.2.3"
+    validations:
+      required: true

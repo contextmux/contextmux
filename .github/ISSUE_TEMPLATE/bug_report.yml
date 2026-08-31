@@ -1,0 +1,88 @@
+name: Bug report
+description: Something behaves differently from how it is documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is a security problem, close this and use
+        [private reporting](https://github.com/contextmux/contextmux/security/advisories/new) instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what it did, and what you expected instead.
+      placeholder: |
+        I ran `ctxmux run ABC-123 --tracker jira --agent copilot`.
+        It escalated with "no acceptance criteria found", but the ticket has a
+        "Definition of done" section with three bullets.
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `ctxmux doctor`
+      description: >-
+        This reports the things that otherwise fail silently, and answers most of the questions
+        we would ask next. Redact tokens and internal URLs — it does not print secrets, but it
+        does print paths and remotes.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`ctxmux --version`, or the tag if you are running the Action."
+      placeholder: "0.2.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: How were you running it
+      options:
+        - CLI, on my machine
+        - GitHub Action, dispatched from the Actions tab
+        - GitHub Action, triggered by a review or comment
+        - GitHub Action, on a schedule
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options: [claude, copilot, cursor, codex, local, not applicable]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tracker
+    attributes:
+      label: Tracker
+      options: [file, github, jira, not applicable]
+    validations:
+      required: true
+
+  - type: textarea
+    id: trace
+    attributes:
+      label: What the agent actually did
+      description: >-
+        `ctxmux trace <task>`, if the run got far enough to record one. Skip it if the problem
+        happened before dispatch.
+      render: text
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant parts of `.ctxmux/`
+      description: >-
+        Only if you think configuration is involved — the gate that misfired, the rule that was
+        ignored. No need to paste the whole directory.
+      render: text

@@ -1,0 +1,3 @@
+[mcp_servers.ctxmux-repo]
+command = "node"
+args = ["packages/mcp-repo/dist/index.js"]

@@ -142,6 +142,20 @@ when it imported config you already had, since that is where a rule pointing at 
 a glob matching nothing tends to be hiding. `init --advise` asks for the report explicitly, and
 works on a repository that is already set up.
 
+Neither of those costs anything. Two commands do, and both are opt-in:
+
+```bash
+ctxmux advise --depth single   # also ask your agent what it thinks of the rules
+ctxmux propose                 # ask what rules this repository is missing
+```
+
+`propose` asks four agents the same question from four different standings — the reviewer who
+has to spot a violation in a diff, the newcomer reading cold, the minimalist who thinks most
+rules are noise, the maintainer who will still be here in a year. What more than one of them
+arrives at independently is ranked first, which is the only quality signal available without
+paying twice. It prints; `--write` is what puts anything in `.ctxmux/rules/`, and it will never
+replace a rule you wrote by hand.
+
 `doctor` checks the plumbing. `advise` reads the rules: a rule scoped to files that do not
 exist, one restricted to an agent you do not compile for, two rules that contradict each other,
 a skill whose description is too thin to ever activate. It needs no network and costs nothing,
@@ -467,6 +481,7 @@ than quietly editing your checkout.
 | `ctxmux check` | Verify generated files are current; non-zero exit if not |
 | `ctxmux doctor` | Report what will fail silently |
 | `ctxmux advise` | Review the rules themselves and say what will not work, or not be followed |
+| `ctxmux propose` | Ask a council of agents what rules this repository should have |
 | `ctxmux map` | Query the repository index |
 | `ctxmux run` | Drive a task to a proposed change, under gates |
 | `ctxmux status` | Show recorded runs and what is waiting on you |

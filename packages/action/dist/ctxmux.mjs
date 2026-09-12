@@ -461,8 +461,8 @@ var init_parseUtil = __esm({
     init_errors();
     init_en();
     makeIssue = (params) => {
-      const { data, path: path26, errorMaps, issueData } = params;
-      const fullPath = [...path26, ...issueData.path || []];
+      const { data, path: path27, errorMaps, issueData } = params;
+      const fullPath = [...path27, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -770,11 +770,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util();
     ParseInputLazyPath = class {
-      constructor(parent, value, path26, key) {
+      constructor(parent, value, path27, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path26;
+        this._path = path27;
         this._key = key;
       }
       get path() {
@@ -4400,17 +4400,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path26) {
-      const ctrl = callVisitor(key, node, visitor, path26);
+    function visit_(key, node, visitor, path27) {
+      const ctrl = callVisitor(key, node, visitor, path27);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path26, ctrl);
-        return visit_(key, ctrl, visitor, path26);
+        replaceNode(key, path27, ctrl);
+        return visit_(key, ctrl, visitor, path27);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path26 = Object.freeze(path26.concat(node));
+          path27 = Object.freeze(path27.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path26);
+            const ci = visit_(i, node.items[i], visitor, path27);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -4421,13 +4421,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path26 = Object.freeze(path26.concat(node));
-          const ck = visit_("key", node.key, visitor, path26);
+          path27 = Object.freeze(path27.concat(node));
+          const ck = visit_("key", node.key, visitor, path27);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path26);
+          const cv = visit_("value", node.value, visitor, path27);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -4448,17 +4448,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path26) {
-      const ctrl = await callVisitor(key, node, visitor, path26);
+    async function visitAsync_(key, node, visitor, path27) {
+      const ctrl = await callVisitor(key, node, visitor, path27);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path26, ctrl);
-        return visitAsync_(key, ctrl, visitor, path26);
+        replaceNode(key, path27, ctrl);
+        return visitAsync_(key, ctrl, visitor, path27);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path26 = Object.freeze(path26.concat(node));
+          path27 = Object.freeze(path27.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path26);
+            const ci = await visitAsync_(i, node.items[i], visitor, path27);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -4469,13 +4469,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path26 = Object.freeze(path26.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path26);
+          path27 = Object.freeze(path27.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path27);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path26);
+          const cv = await visitAsync_("value", node.value, visitor, path27);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -4502,23 +4502,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path26) {
+    function callVisitor(key, node, visitor, path27) {
       if (typeof visitor === "function")
-        return visitor(key, node, path26);
+        return visitor(key, node, path27);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path26);
+        return visitor.Map?.(key, node, path27);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path26);
+        return visitor.Seq?.(key, node, path27);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path26);
+        return visitor.Pair?.(key, node, path27);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path26);
+        return visitor.Scalar?.(key, node, path27);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path26);
+        return visitor.Alias?.(key, node, path27);
       return void 0;
     }
-    function replaceNode(key, path26, node) {
-      const parent = path26[path26.length - 1];
+    function replaceNode(key, path27, node) {
+      const parent = path27[path27.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -5128,10 +5128,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path26, value) {
+    function collectionFromPath(schema, path27, value) {
       let v = value;
-      for (let i = path26.length - 1; i >= 0; --i) {
-        const k = path26[i];
+      for (let i = path27.length - 1; i >= 0; --i) {
+        const k = path27[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -5150,7 +5150,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path26) => path26 == null || typeof path26 === "object" && !!path26[Symbol.iterator]().next().done;
+    var isEmptyPath = (path27) => path27 == null || typeof path27 === "object" && !!path27[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -5180,11 +5180,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path26, value) {
-        if (isEmptyPath(path26))
+      addIn(path27, value) {
+        if (isEmptyPath(path27))
           this.add(value);
         else {
-          const [key, ...rest] = path26;
+          const [key, ...rest] = path27;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -5198,8 +5198,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path26) {
-        const [key, ...rest] = path26;
+      deleteIn(path27) {
+        const [key, ...rest] = path27;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -5213,8 +5213,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path26, keepScalar) {
-        const [key, ...rest] = path26;
+      getIn(path27, keepScalar) {
+        const [key, ...rest] = path27;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -5232,8 +5232,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path26) {
-        const [key, ...rest] = path26;
+      hasIn(path27) {
+        const [key, ...rest] = path27;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -5243,8 +5243,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path26, value) {
-        const [key, ...rest] = path26;
+      setIn(path27, value) {
+        const [key, ...rest] = path27;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -7759,9 +7759,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path26, value) {
+      addIn(path27, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path26, value);
+          this.contents.addIn(path27, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -7836,14 +7836,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path26) {
-        if (Collection.isEmptyPath(path26)) {
+      deleteIn(path27) {
+        if (Collection.isEmptyPath(path27)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path26) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path27) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -7858,10 +7858,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path26, keepScalar) {
-        if (Collection.isEmptyPath(path26))
+      getIn(path27, keepScalar) {
+        if (Collection.isEmptyPath(path27))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path26, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path27, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -7872,10 +7872,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path26) {
-        if (Collection.isEmptyPath(path26))
+      hasIn(path27) {
+        if (Collection.isEmptyPath(path27))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path26) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path27) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -7892,13 +7892,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path26, value) {
-        if (Collection.isEmptyPath(path26)) {
+      setIn(path27, value) {
+        if (Collection.isEmptyPath(path27)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path26), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path27), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path26, value);
+          this.contents.setIn(path27, value);
         }
       }
       /**
@@ -9858,9 +9858,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path26) => {
+    visit.itemAtPath = (cst, path27) => {
       let item = cst;
-      for (const [field, index] of path26) {
+      for (const [field, index] of path27) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -9869,23 +9869,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path26) => {
-      const parent = visit.itemAtPath(cst, path26.slice(0, -1));
-      const field = path26[path26.length - 1][0];
+    visit.parentCollection = (cst, path27) => {
+      const parent = visit.itemAtPath(cst, path27.slice(0, -1));
+      const field = path27[path27.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path26, item, visitor) {
-      let ctrl = visitor(item, path26);
+    function _visit(path27, item, visitor) {
+      let ctrl = visitor(item, path27);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path26.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path27.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -9896,10 +9896,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path26);
+            ctrl = ctrl(item, path27);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path26) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path27) : ctrl;
     }
     exports.visit = visit;
   }
@@ -11201,14 +11201,14 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs24 = this.flowScalar(this.type);
+              const fs25 = this.flowScalar(this.type);
               if (atNextItem || it.value) {
-                map.items.push({ start, key: fs24, sep: [] });
+                map.items.push({ start, key: fs25, sep: [] });
                 this.onKeyLine = true;
               } else if (it.sep) {
-                this.stack.push(fs24);
+                this.stack.push(fs25);
               } else {
-                Object.assign(it, { key: fs24, sep: [] });
+                Object.assign(it, { key: fs25, sep: [] });
                 this.onKeyLine = true;
               }
               return;
@@ -11336,13 +11336,13 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs24 = this.flowScalar(this.type);
+              const fs25 = this.flowScalar(this.type);
               if (!it || it.value)
-                fc.items.push({ start: [], key: fs24, sep: [] });
+                fc.items.push({ start: [], key: fs25, sep: [] });
               else if (it.sep)
-                this.stack.push(fs24);
+                this.stack.push(fs25);
               else
-                Object.assign(it, { key: fs24, sep: [] });
+                Object.assign(it, { key: fs25, sep: [] });
               return;
             }
             case "flow-map-end":
@@ -12951,8 +12951,8 @@ async function listDirs2(dir) {
   }
 }
 function toSlug(s) {
-  const slug2 = s.toLowerCase().replace(/\.(instructions|prompt|agent|mdc|md)$/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
-  return slug2 || "unnamed";
+  const slug3 = s.toLowerCase().replace(/\.(instructions|prompt|agent|mdc|md)$/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
+  return slug3 || "unnamed";
 }
 function parseGlobs(value) {
   if (Array.isArray(value)) return value.map(String).filter((g) => g && g !== "**");
@@ -17763,13 +17763,12 @@ function sharedSubject(a, b) {
   return null;
 }
 function phrases(body) {
-  const words = body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? [];
+  const words = (body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? []).filter((w) => !STOP.has(w));
   const out = /* @__PURE__ */ new Set();
   for (let i = 0; i + 1 < words.length; i++) {
     const first = words[i];
     const second = words[i + 1];
     if (!first || !second) continue;
-    if (STOP.has(first) && STOP.has(second)) continue;
     out.add(`${first} ${second}`);
   }
   return out;
@@ -17802,7 +17801,43 @@ var STOP = /* @__PURE__ */ new Set([
   "always",
   "never",
   "avoid",
-  "prefer"
+  "prefer",
+  "and",
+  "are",
+  "but",
+  "for",
+  "from",
+  "has",
+  "have",
+  "into",
+  "its",
+  "not",
+  "now",
+  "one",
+  "only",
+  "out",
+  "own",
+  "same",
+  "that",
+  "the",
+  "them",
+  "then",
+  "they",
+  "this",
+  "was",
+  "were",
+  "when",
+  "with",
+  "you",
+  "your",
+  "must",
+  "can",
+  "any",
+  "all",
+  "per",
+  "via",
+  "here",
+  "some"
 ]);
 function inspect2(model, facts) {
   const out = [];
@@ -18002,6 +18037,148 @@ function parseFindings(answer, known) {
   return out.sort((a, b) => a.where.localeCompare(b.where) || a.check.localeCompare(b.check));
 }
 function extractObject(text) {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// packages/council/src/personas.ts
+var PERSONAS = [
+  {
+    id: "reviewer",
+    stance: "You review every pull request in this repository. You are the one who has to notice when a rule was broken, from a diff, without running anything.",
+    brief: "Propose rules whose violation you could actually spot in a diff. Prefer a rule naming a concrete thing \u2014 a directory, an import, a command, a file extension \u2014 over one naming a quality. If you could not tell from the diff, do not propose it."
+  },
+  {
+    id: "newcomer",
+    stance: "It is your first day. You have the repository open and no context beyond what is written down, and you are about to make a change.",
+    brief: "Propose rules for the things that would surprise you \u2014 a convention that is not obvious from reading the code, a place where the obvious approach is the wrong one here, a command you would not have guessed you needed to run. Skip anything you would have assumed correctly."
+  },
+  {
+    id: "minimalist",
+    stance: "You think most written-down rules are noise, and that every rule an agent reads costs attention that the actual task needed.",
+    brief: "Propose only rules that a competent agent would get wrong without being told. If a rule restates a default \u2014 write tests, handle errors, use clear names \u2014 do not propose it. Proposing nothing at all is a respectable answer."
+  },
+  {
+    id: "maintainer",
+    stance: "You will still be here in a year, living with whatever this repository becomes.",
+    brief: "Propose rules about the things that rot: where generated output lives and why it must not be edited, what must stay in step with what, which boundaries exist for a reason. Prefer rules that will still be true after the code changes."
+  }
+];
+
+// packages/council/src/generate.ts
+async function generate(facts, judge, opts = {}) {
+  const personas = opts.personas ?? PERSONAS;
+  const limit = opts.limit ?? 8;
+  const answers = await Promise.all(
+    personas.map(async (persona) => {
+      try {
+        const text = await judge.ask(buildPersonaPrompt(persona, facts));
+        return { persona, proposals: parseProposals(text, persona.id) };
+      } catch (e) {
+        return { persona, proposals: [], reason: e instanceof Error ? e.message : String(e) };
+      }
+    })
+  );
+  const silent = answers.filter((a) => a.proposals.length === 0).map((a) => ({ persona: a.persona.id, reason: a.reason ?? "proposed nothing" }));
+  return { proposals: synthesise(answers.flatMap((a) => a.proposals), limit), silent };
+}
+var AGREEMENT = 2;
+function overlap(a, b) {
+  let n = 0;
+  for (const phrase of a) if (b.has(phrase)) n++;
+  return n;
+}
+function synthesise(all, limit) {
+  const groups = [];
+  for (const proposal of all) {
+    const mine = phrases(proposal.body);
+    const existing = groups.find((g) => g.some((other) => overlap(mine, phrases(other.body)) >= AGREEMENT));
+    if (existing) existing.push(proposal);
+    else groups.push([proposal]);
+  }
+  return groups.map((group) => {
+    const best = [...group].sort((a, b) => b.body.length - a.body.length)[0];
+    return { ...best, from: [...new Set(group.flatMap((g) => g.from))].sort() };
+  }).sort((a, b) => b.from.length - a.from.length || a.name.localeCompare(b.name)).slice(0, limit);
+}
+function buildPersonaPrompt(persona, facts) {
+  const lines = [
+    persona.stance,
+    "",
+    "You are writing standing instructions for coding agents working in this repository. Every",
+    "rule you propose will be read on every task, before the agent sees the task.",
+    "",
+    "What this repository is:",
+    `- package manager: ${facts.packageManager}`
+  ];
+  if (facts.languages.length) lines.push(`- languages: ${facts.languages.join(", ")}`);
+  if (facts.frameworks.length) lines.push(`- stack: ${facts.frameworks.join(", ")}`);
+  if (facts.qualityGate.length) lines.push(`- validated by: ${facts.qualityGate.join(" && ")}`);
+  if (facts.isMonorepo) lines.push("- a monorepo");
+  if (facts.sampleFiles.length) lines.push(`- some real paths: ${facts.sampleFiles.slice(0, 40).join(", ")}`);
+  lines.push(
+    "",
+    persona.brief,
+    "",
+    "Propose at most four rules. Fewer is better. Each one must be specific to this repository:",
+    "a rule that would read identically in any other project is not worth proposing.",
+    "",
+    "Answer with JSON and nothing else:",
+    "",
+    '{"rules":[{"name":"kebab-case-slug","description":"one line on when it applies","globs":["src/**"],"body":"the instruction, in one or two sentences"}]}',
+    "",
+    'Leave `globs` empty for a rule that applies everywhere. Return {"rules":[]} if you have',
+    "nothing worth saying."
+  );
+  return lines.join("\n");
+}
+function parseProposals(answer, from) {
+  const json = extractObject2(answer);
+  const raw = json?.rules;
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item;
+    const name = typeof r["name"] === "string" ? slug2(r["name"]) : null;
+    const body = typeof r["body"] === "string" ? r["body"].trim() : null;
+    const description = typeof r["description"] === "string" ? r["description"].trim() : "";
+    if (!name || !body) continue;
+    const globs = Array.isArray(r["globs"]) ? r["globs"].filter((g) => typeof g === "string") : [];
+    out.push({ name, description, globs, body, from: [from] });
+  }
+  return out;
+}
+function slug2(raw) {
+  const s = raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  return s.length > 0 ? s : null;
+}
+function extractObject2(text) {
   const start = text.indexOf("{");
   if (start < 0) return null;
   let depth = 0;
@@ -19458,10 +19635,10 @@ function run(bin, args, input) {
   });
 }
 var GitHubApiError = class extends Error {
-  constructor(message, status, path26) {
+  constructor(message, status, path27) {
     super(message);
     this.status = status;
-    this.path = path26;
+    this.path = path27;
   }
   status;
   path;
@@ -19481,7 +19658,7 @@ var TokenClient = class {
   baseUrl;
   fetchImpl;
   sleep;
-  async request(method, url, body, path26, idempotent) {
+  async request(method, url, body, path27, idempotent) {
     const maxAttempts = idempotent ? this.opts.maxAttempts ?? 3 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const res = await this.fetchImpl(url, {
@@ -19507,23 +19684,23 @@ var TokenClient = class {
         throw new GitHubApiError(
           `HTTP ${res.status}: ${redact(text).slice(0, 300)}`,
           res.status,
-          path26
+          path27
         );
       }
       if (res.status === 204) return void 0;
       return await res.json();
     }
-    throw new GitHubApiError("request failed", 0, path26);
+    throw new GitHubApiError("request failed", 0, path27);
   }
-  async rest(method, path26, body) {
-    return this.request(method, `${this.baseUrl}/${path26}`, body, path26, method === "GET");
+  async rest(method, path27, body) {
+    return this.request(method, `${this.baseUrl}/${path27}`, body, path27, method === "GET");
   }
-  async raw(path26, accept) {
-    const res = await this.fetchImpl(`${this.baseUrl}/${path26}`, {
+  async raw(path27, accept) {
+    const res = await this.fetchImpl(`${this.baseUrl}/${path27}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${this.opts.token}`, Accept: accept }
     });
-    if (!res.ok) throw new GitHubApiError(`HTTP ${res.status}`, res.status, path26);
+    if (!res.ok) throw new GitHubApiError(`HTTP ${res.status}`, res.status, path27);
     return res.text();
   }
   async graphql(query, variables = {}, headers = {}) {
@@ -19574,14 +19751,14 @@ var GhCliClient = class {
     }
     return res.stdout;
   }
-  async rest(method, path26, body) {
-    const args = ["api", "--method", method, path26];
+  async rest(method, path27, body) {
+    const args = ["api", "--method", method, path27];
     if (body !== void 0) args.push("--input", "-");
     const out = await this.run(args, body === void 0 ? void 0 : JSON.stringify(body));
     return out.trim() ? JSON.parse(out) : void 0;
   }
-  async raw(path26, accept) {
-    return this.run(["api", "-H", `Accept: ${accept}`, path26]);
+  async raw(path27, accept) {
+    return this.run(["api", "-H", `Accept: ${accept}`, path27]);
   }
   async graphql(query, variables = {}, headers = {}) {
     const args = ["api", "graphql", "--input", "-"];
@@ -19671,16 +19848,16 @@ var GitHubForge = class {
    * The canonical name is knowable, because the redirect that broke the write also makes the
    * read work. So it is looked up and named.
    */
-  async rest(method, path26, body) {
+  async rest(method, path27, body) {
     try {
-      return await this.client.rest(method, path26, body);
+      return await this.client.rest(method, path27, body);
     } catch (err) {
       if (!isRedirect(err) || method === "GET") throw err;
       const moved = await this.canonicalName().catch(() => null);
       throw new GitHubApiError(
         `${this.ref.owner}/${this.ref.repo} has moved${moved ? ` to ${moved}` : ""}. Reads follow the redirect but writes do not, which is why everything up to this point worked. Set CTXMUX_REPO${moved ? ` to ${moved}` : " to the new owner/name"}, or pass --repo.`,
         307,
-        path26
+        path27
       );
     }
   }
@@ -19834,18 +20011,18 @@ var GitHubForge = class {
    * wrong in. The page ceiling is a backstop against an unbounded loop, and it says so rather
    * than returning what it managed to collect.
    */
-  async paginate(path26, what, maxPages = 30) {
+  async paginate(path27, what, maxPages = 30) {
     const out = [];
-    const join22 = path26.includes("?") ? "&" : "?";
+    const join23 = path27.includes("?") ? "&" : "?";
     for (let page = 1; page <= maxPages; page++) {
-      const raw = await this.client.rest("GET", `${path26}${join22}per_page=100&page=${page}`);
+      const raw = await this.client.rest("GET", `${path27}${join23}per_page=100&page=${page}`);
       out.push(...raw);
       if (raw.length < 100) return out;
     }
     throw new GitHubApiError(
       `${what} more than ${maxPages * 100} items; refusing to report a partial list`,
       0,
-      path26
+      path27
     );
   }
   /**
@@ -20800,8 +20977,8 @@ var HttpJira = class {
   auth;
   fetchImpl;
   sleep;
-  async request(method, path26, body) {
-    const url = `${this.opts.baseUrl.replace(/\/$/, "")}/rest/api/3/${path26}`;
+  async request(method, path27, body) {
+    const url = `${this.opts.baseUrl.replace(/\/$/, "")}/rest/api/3/${path27}`;
     const maxAttempts = method === "GET" ? this.opts.maxAttempts ?? 3 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const res = await this.fetchImpl(url, {
@@ -23093,8 +23270,8 @@ var SLUG_NOISE = /* @__PURE__ */ new Set([
 ]);
 function slugFor(lesson) {
   const words = lesson.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !SLUG_NOISE.has(w));
-  const slug2 = [...new Set(words)].slice(0, 4).join("-");
-  return slug2 || "learned-convention";
+  const slug3 = [...new Set(words)].slice(0, 4).join("-");
+  return slug3 || "learned-convention";
 }
 async function uniqueName(base, clusterId2, sourceDir, taken, read2) {
   const pathFor = (name) => `${sourceDir}/rules/${name}.md`;
@@ -23141,11 +23318,11 @@ async function propose(clusters, opts) {
     const signalKeys = cluster.signals.map(signalKey);
     const target = findTarget(cluster, opts.context);
     if (target) {
-      const path26 = target.kind === "skill" ? `${sourceDir}/skills/${target.node.name}/SKILL.md` : `${sourceDir}/rules/${target.node.name}.md`;
-      const before = await opts.read?.(path26) ?? null;
+      const path27 = target.kind === "skill" ? `${sourceDir}/skills/${target.node.name}/SKILL.md` : `${sourceDir}/rules/${target.node.name}.md`;
+      const before = await opts.read?.(path27) ?? null;
       const amended = appendGuidance(target.node.body, lesson);
       if (!amended) continue;
-      const content = before !== null ? serializeFrontmatter(parseFrontmatter(before, path26).data, amended) : target.kind === "skill" ? frontmatter(
+      const content = before !== null ? serializeFrontmatter(parseFrontmatter(before, path27).data, amended) : target.kind === "skill" ? frontmatter(
         {
           name: target.node.name,
           description: target.node.description,
@@ -23165,7 +23342,7 @@ async function propose(clusters, opts) {
         id: cluster.id,
         kind: target.kind === "skill" ? "amend-skill" : "amend-rule",
         lesson,
-        path: path26,
+        path: path27,
         target: target.node.name,
         taskCount: cluster.taskCount,
         evidence,
@@ -23886,19 +24063,104 @@ async function addCommand(args) {
   return 0;
 }
 
-// packages/cli/src/commands/handoff.ts
+// packages/cli/src/commands/propose.ts
+init_src();
 import { promises as fs22 } from "node:fs";
 import * as path24 from "node:path";
+async function proposeCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const write = flagBool(args, "write");
+  const json = flagBool(args, "json");
+  const limit = Number(flagString(args, "limit") ?? "8");
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`--limit takes a whole number of rules, not "${flagString(args, "limit")}".`);
+  }
+  const profile = await detectProfile(root);
+  const tracked = await listTrackedFiles(root);
+  if (!json) {
+    info(c.dim("Asking four agents, each given a different thing to care about. This costs money."));
+  }
+  const { proposals, silent } = await generate(
+    {
+      packageManager: profile.packageManager,
+      languages: profile.languages,
+      frameworks: profile.frameworks,
+      qualityGate: profile.qualityGate,
+      isMonorepo: profile.isMonorepo,
+      sampleFiles: (tracked ?? []).slice(0, 40)
+    },
+    judgeFor(flagString(args, "model")),
+    { limit }
+  );
+  if (json) {
+    info(JSON.stringify({ proposals, silent }, null, 2));
+    return 0;
+  }
+  for (const s of silent) warn(`${s.persona} said nothing: ${s.reason}`);
+  if (proposals.length === 0) {
+    info("");
+    info("No rules proposed. That is a real answer \u2014 this repository may not need any written down.");
+    return 0;
+  }
+  heading("Proposed");
+  for (const p of proposals) {
+    bullet(`${c.bold(p.name)}  ${c.dim(`${p.from.length} of 4: ${p.from.join(", ")}`)}`);
+    if (p.globs.length > 0) info("    " + c.dim(`applies to ${p.globs.join(", ")}`));
+    for (const line of p.body.split("\n")) info("    " + line);
+    info("");
+  }
+  if (!write) {
+    info(c.dim(`Nothing written. \`ctxmux propose --write\` puts these in .ctxmux/rules/.`));
+    return 0;
+  }
+  const written = await writeProposals(root, proposals);
+  heading("Written");
+  for (const w of written.wrote) bullet(w);
+  for (const s of written.skipped) bullet(c.dim(`${s} \u2014 already exists, left alone`));
+  info("");
+  success(`${written.wrote.length} written. Read them before you run \`ctxmux sync\`.`);
+  return 0;
+}
+async function writeProposals(root, proposals) {
+  const dir = path24.join(root, ".ctxmux", "rules");
+  await fs22.mkdir(dir, { recursive: true });
+  const wrote = [];
+  const skipped = [];
+  for (const p of proposals) {
+    const rel = path24.join(".ctxmux", "rules", `${p.name}.md`);
+    const abs = path24.join(root, rel);
+    const exists3 = await fs22.access(abs).then(() => true).catch(() => false);
+    if (exists3) {
+      skipped.push(rel);
+      continue;
+    }
+    await writeFileAtomic(abs, renderRule(p));
+    wrote.push(rel);
+  }
+  return { wrote, skipped };
+}
+function renderRule(p) {
+  const front = ["---", `name: ${p.name}`];
+  if (p.description) front.push(`description: ${JSON.stringify(p.description)}`);
+  if (p.globs.length > 0) front.push(`globs: ${JSON.stringify(p.globs)}`);
+  front.push(`x-ctxmux-proposed-by: ${p.from.join(",")}`, "---", "");
+  return `${front.join("\n")}${p.body.trim()}
+`;
+}
+
+// packages/cli/src/commands/handoff.ts
+import { promises as fs23 } from "node:fs";
+import * as path25 from "node:path";
 async function loadTrajectory2(root, runId) {
-  const file = path24.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
+  const file = path25.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
   try {
-    return Trajectory.from(JSON.parse(await fs22.readFile(file, "utf8")));
+    return Trajectory.from(JSON.parse(await fs23.readFile(file, "utf8")));
   } catch {
     return null;
   }
 }
 async function handoffCommand(args) {
-  const root = path24.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path25.resolve(flagString(args, "root") ?? process.cwd());
   const target = args.positionals[0];
   const tier = flagString(args, "tier") ?? "valuable";
   const show = flagString(args, "render") !== void 0 || flagString(args, "tier") !== void 0;
@@ -23909,7 +24171,7 @@ async function handoffCommand(args) {
     info("  ctxmux handoff T-1 --tier essential " + c.dim("render at a tier"));
     return 1;
   }
-  const store = new FileStore(path24.join(root, ".ctxmux", "state"));
+  const store = new FileStore(path25.join(root, ".ctxmux", "state"));
   const run3 = await store.load(target) ?? await store.load(`run-${target}`);
   if (!run3) {
     error(`No run "${target}".`);
@@ -23962,9 +24224,9 @@ async function handoffCommand(args) {
 
 // packages/cli/src/commands/state.ts
 import { spawn as spawn5 } from "node:child_process";
-import { promises as fs23 } from "node:fs";
+import { promises as fs24 } from "node:fs";
 import * as os3 from "node:os";
-import * as path25 from "node:path";
+import * as path26 from "node:path";
 var STATE_DIR = ".ctxmux/state";
 var DEFAULT_BRANCH = "ctxmux-state";
 function git4(cwd, args) {
@@ -23980,16 +24242,16 @@ function git4(cwd, args) {
 }
 async function copyTree(from, to) {
   let copied = 0;
-  const entries = await fs23.readdir(from, { withFileTypes: true }).catch(() => []);
+  const entries = await fs24.readdir(from, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
-    const src = path25.join(from, entry.name);
-    const dest = path25.join(to, entry.name);
+    const src = path26.join(from, entry.name);
+    const dest = path26.join(to, entry.name);
     if (entry.isDirectory()) {
-      await fs23.mkdir(dest, { recursive: true });
+      await fs24.mkdir(dest, { recursive: true });
       copied += await copyTree(src, dest);
     } else if (entry.isFile()) {
-      await fs23.mkdir(path25.dirname(dest), { recursive: true });
-      await fs23.copyFile(src, dest);
+      await fs24.mkdir(path26.dirname(dest), { recursive: true });
+      await fs24.copyFile(src, dest);
       copied += 1;
     }
   }
@@ -23997,13 +24259,13 @@ async function copyTree(from, to) {
 }
 function options(args) {
   return {
-    root: path25.resolve(flagString(args, "root") ?? process.cwd()),
+    root: path26.resolve(flagString(args, "root") ?? process.cwd()),
     branch: flagString(args, "branch") ?? DEFAULT_BRANCH,
     remote: flagString(args, "remote") ?? "origin"
   };
 }
 async function inStateWorktree(opts, fn) {
-  const dir = await fs23.mkdtemp(path25.join(os3.tmpdir(), "ctxmux-state-"));
+  const dir = await fs24.mkdtemp(path26.join(os3.tmpdir(), "ctxmux-state-"));
   await git4(opts.root, ["fetch", opts.remote, opts.branch, "--depth", "1"]).catch(() => {
   });
   const remoteHas = (await git4(opts.root, ["rev-parse", "--verify", `${opts.remote}/${opts.branch}`])).code === 0;
@@ -24011,7 +24273,7 @@ async function inStateWorktree(opts, fn) {
   const existed = remoteHas || localHas;
   const added = existed ? await git4(opts.root, ["worktree", "add", "--detach", dir, remoteHas ? `${opts.remote}/${opts.branch}` : opts.branch]) : await git4(opts.root, ["worktree", "add", "--detach", dir]);
   if (added.code !== 0) {
-    await fs23.rm(dir, { recursive: true, force: true });
+    await fs24.rm(dir, { recursive: true, force: true });
     throw new Error(`could not prepare a worktree for "${opts.branch}": ${added.stderr.trim()}`);
   }
   try {
@@ -24019,14 +24281,14 @@ async function inStateWorktree(opts, fn) {
   } finally {
     await git4(opts.root, ["worktree", "remove", "--force", dir]).catch(() => {
     });
-    await fs23.rm(dir, { recursive: true, force: true }).catch(() => {
+    await fs24.rm(dir, { recursive: true, force: true }).catch(() => {
     });
   }
 }
 async function statePushCommand(args) {
   const opts = options(args);
-  const local = path25.join(opts.root, STATE_DIR);
-  const files = await fs23.readdir(local).catch(() => null);
+  const local = path26.join(opts.root, STATE_DIR);
+  const files = await fs24.readdir(local).catch(() => null);
   if (files === null || files.length === 0) {
     warn("Nothing to push \u2014 no run state here yet.");
     info("    " + c.dim("State appears once a run has happened. Try `ctxmux run` first."));
@@ -24035,12 +24297,12 @@ async function statePushCommand(args) {
   return inStateWorktree(opts, async (dir, existed) => {
     if (!existed) await git4(dir, ["checkout", "--orphan", opts.branch]);
     else await git4(dir, ["checkout", "-B", opts.branch]);
-    await fs23.rm(path25.join(dir, STATE_DIR), { recursive: true, force: true });
-    await fs23.mkdir(path25.join(dir, STATE_DIR), { recursive: true });
-    const copied = await copyTree(local, path25.join(dir, STATE_DIR));
-    for (const entry of await fs23.readdir(dir)) {
+    await fs24.rm(path26.join(dir, STATE_DIR), { recursive: true, force: true });
+    await fs24.mkdir(path26.join(dir, STATE_DIR), { recursive: true });
+    const copied = await copyTree(local, path26.join(dir, STATE_DIR));
+    for (const entry of await fs24.readdir(dir)) {
       if (entry === ".git" || entry === ".ctxmux") continue;
-      await fs23.rm(path25.join(dir, entry), { recursive: true, force: true });
+      await fs24.rm(path26.join(dir, entry), { recursive: true, force: true });
     }
     await git4(dir, ["add", "-A"]);
     const status = await git4(dir, ["status", "--porcelain"]);
@@ -24066,19 +24328,19 @@ async function statePushCommand(args) {
 }
 async function statePullCommand(args) {
   const opts = options(args);
-  const local = path25.join(opts.root, STATE_DIR);
+  const local = path26.join(opts.root, STATE_DIR);
   return inStateWorktree(opts, async (dir, existed) => {
     if (!existed) {
       warn(`No "${opts.branch}" branch on ${opts.remote} yet.`);
       info("    " + c.dim("It appears the first time somebody runs `ctxmux state push`."));
       return 0;
     }
-    const remote = path25.join(dir, STATE_DIR);
-    if (!await fs23.readdir(remote).catch(() => null)) {
+    const remote = path26.join(dir, STATE_DIR);
+    if (!await fs24.readdir(remote).catch(() => null)) {
       warn(`"${opts.branch}" exists but carries no state.`);
       return 0;
     }
-    await fs23.mkdir(local, { recursive: true });
+    await fs24.mkdir(local, { recursive: true });
     const copied = await copyTree(remote, local);
     heading("Pulled");
     bullet(`${copied} file(s) from ${opts.remote}/${opts.branch}`);
@@ -24113,6 +24375,7 @@ ${c.bold("COMMANDS")}
   check           Verify generated files are in sync; exits non-zero if not (for CI)
   advise          Review .ctxmux/ and report what will not work, or not be followed
                   --depth single|panel also asks your agent; the default costs nothing
+  propose         Ask a council of agents what rules this repository should have
   doctor          Report anything that will fail silently
   map             Query the repository index and print a token-budgeted map
 
@@ -24183,6 +24446,8 @@ async function main() {
       return importCommand(args);
     case "sync":
       return syncCommand(args);
+    case "propose":
+      return proposeCommand(args);
     case "advise":
       return adviseCommand(args);
     case "check":

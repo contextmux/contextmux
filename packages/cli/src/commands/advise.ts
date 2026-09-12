@@ -71,7 +71,7 @@ export function renderAdvice(findings: Suggestion[]): void {
  * repository for an opinion, so the honest answer is that it is unavailable rather than to
  * reach for `invoke` and hope.
  */
-function judgeFor(model: string | undefined): Judge {
+export function judgeFor(model: string | undefined): Judge {
   return {
     id: CLAUDE_SPEC.id,
     async ask(prompt: string): Promise<string> {

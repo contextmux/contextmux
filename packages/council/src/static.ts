@@ -293,24 +293,40 @@ function sharedSubject(a: string, b: string): string | null {
   return null
 }
 
-/** Adjacent content-word pairs. Stop words never carry a subject on their own. */
-function phrases(body: string): Set<string> {
-  const words = body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? []
+/**
+ * Adjacent content-word pairs, with function words excluded entirely.
+ *
+ * Both words have to carry meaning. Allowing one function word makes overlapping windows of the
+ * same span count separately — "the generated files" yields both `the generated` and
+ * `generated files`, so a single shared phrase looks like two agreements. Requiring two content
+ * words means each shared phrase is counted once, which is what a caller comparing counts
+ * assumes it is getting.
+ */
+export function phrases(body: string): Set<string> {
+  const words = (body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? []).filter((w) => !STOP.has(w))
   const out = new Set<string>()
   for (let i = 0; i + 1 < words.length; i++) {
     const first = words[i]
     const second = words[i + 1]
     if (!first || !second) continue
-    if (STOP.has(first) && STOP.has(second)) continue
     out.add(`${first} ${second}`)
   }
   return out
 }
 
+/**
+ * Words that never identify what a rule is about.
+ *
+ * Both the long connectives and the short function words: the short ones matter most, because
+ * they are what glue two unrelated phrases into an apparent agreement.
+ */
 const STOP = new Set([
   'about', 'after', 'again', 'against', 'because', 'before', 'being', 'between', 'could',
   'every', 'first', 'other', 'should', 'their', 'there', 'these', 'thing', 'those', 'under',
   'until', 'where', 'which', 'while', 'would', 'always', 'never', 'avoid', 'prefer',
+  'and', 'are', 'but', 'for', 'from', 'has', 'have', 'into', 'its', 'not', 'now', 'one',
+  'only', 'out', 'own', 'same', 'that', 'the', 'them', 'then', 'they', 'this', 'was', 'were',
+  'when', 'with', 'you', 'your', 'must', 'can', 'any', 'all', 'per', 'via', 'here', 'some',
 ])
 
 /**

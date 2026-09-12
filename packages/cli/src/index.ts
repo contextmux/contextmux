@@ -12,6 +12,7 @@ import { evalCommand } from './commands/eval.js'
 import { learnCommand } from './commands/learn.js'
 import { traceCommand } from './commands/trace.js'
 import { addCommand } from './commands/add.js'
+import { adviseCommand } from './commands/advise.js'
 import { handoffCommand } from './commands/handoff.js'
 import { statePullCommand, statePushCommand } from './commands/state.js'
 
@@ -36,6 +37,7 @@ ${c.bold('COMMANDS')}
   add             Install a third-party skill pack
   sync            Compile .ctxmux/ to every configured agent
   check           Verify generated files are in sync; exits non-zero if not (for CI)
+  advise          Review .ctxmux/ and report what will not work, or not be followed
   doctor          Report anything that will fail silently
   map             Query the repository index and print a token-budgeted map
 
@@ -118,6 +120,8 @@ async function main(): Promise<number> {
       return importCommand(args)
     case 'sync':
       return syncCommand(args)
+    case 'advise':
+      return adviseCommand(args)
     case 'check':
       return checkCommand(args)
     case 'doctor':

@@ -15877,14 +15877,14 @@ function testIntegrity(opts = {}) {
       const diff = result.diff || await runner.diff();
       const lines = diff.split("\n");
       const suspicious = [];
-      const normalise = (body) => body.trim().replace(/\s+/g, " ");
+      const normalise2 = (body) => body.trim().replace(/\s+/g, " ");
       const added = new Set(
-        lines.filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => normalise(l.slice(1)))
+        lines.filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => normalise2(l.slice(1)))
       );
       for (const line of lines) {
         if (line.startsWith("-") && !line.startsWith("---")) {
           const body = line.slice(1);
-          if (added.has(normalise(body))) continue;
+          if (added.has(normalise2(body))) continue;
           if (/\b(expect|assert|should)\b/.test(body)) suspicious.push(`removed assertion: ${body.trim()}`);
           else if (/\b(it|test|describe)\s*\(/.test(body)) suspicious.push(`removed test: ${body.trim()}`);
         } else if (line.startsWith("+") && !line.startsWith("+++")) {
@@ -20311,8 +20311,8 @@ var JiraTracker = class {
   async transition(id, to) {
     const data = await this.opts.transport.request("GET", `issue/${encodeURIComponent(id)}/transitions`);
     const wanted = this.mapping[to] ?? [];
-    const normalise = (s) => s.toLowerCase().trim();
-    const match = data.transitions.find((t) => wanted.some((w) => normalise(t.to?.name ?? "") === normalise(w))) ?? data.transitions.find((t) => wanted.some((w) => normalise(t.name) === normalise(w)));
+    const normalise2 = (s) => s.toLowerCase().trim();
+    const match = data.transitions.find((t) => wanted.some((w) => normalise2(t.to?.name ?? "") === normalise2(w))) ?? data.transitions.find((t) => wanted.some((w) => normalise2(t.name) === normalise2(w)));
     if (!match) {
       const available = data.transitions.map((t) => t.to?.name ?? t.name).join(", ");
       throw new JiraError(
@@ -23258,6 +23258,349 @@ async function addCommand(args) {
   return 0;
 }
 
+// packages/council/src/static.ts
+var PATH_LIKE = /(?:^|[\s`'"(])((?:[\w.-]+\/){1,}[\w.-]+\.[a-z]{1,5})(?=[\s`'".,;:)]|$)/gi;
+var POSITIVE = /\b(?:always|must|should|prefer|use)\b/i;
+var NEGATIVE = /\b(?:never|must not|should not|do not|don't|avoid)\b/i;
+function normalise(body) {
+  return body.replace(/\s+/g, " ").trim().toLowerCase();
+}
+function reachedTargets(node, configured) {
+  if (!node.targets || node.targets.length === 0) return [...configured];
+  return configured.filter((t) => node.targets?.includes(t));
+}
+function checkEmptyBody(where, body) {
+  if (body.trim().length > 0) return [];
+  return [
+    {
+      check: "empty-body",
+      severity: "error",
+      where,
+      message: "The body is empty, so this compiles to nothing.",
+      fix: "Write the guidance, or delete the file. An empty node is invisible in every target."
+    }
+  ];
+}
+function checkNeverCompiles(where, node, facts) {
+  if (facts.targets.length === 0) return [];
+  if (reachedTargets(node, facts.targets).length > 0) return [];
+  const asked = node.targets?.join(", ") ?? "none";
+  return [
+    {
+      check: "never-compiles",
+      severity: "error",
+      where,
+      message: `Restricted to ${asked}, none of which this repository compiles.`,
+      fix: `Add one of ${asked} to targets in .ctxmux/config.json, or widen this node's targets. As it stands it reaches nothing.`
+    }
+  ];
+}
+function checkGlobsIgnored(where, rule) {
+  if (!rule.alwaysApply || rule.globs.length === 0) return [];
+  return [
+    {
+      check: "globs-ignored",
+      severity: "warning",
+      where,
+      message: "alwaysApply is set, so the globs are dead configuration.",
+      fix: "Drop alwaysApply to scope this to the globs, or delete the globs to say plainly that it is repo-wide."
+    }
+  ];
+}
+function checkGlobsMatchNothing(where, globs, facts) {
+  if (globs.length === 0 || facts.files.length === 0) return [];
+  const dead = globs.filter((g) => {
+    const re = globToRegExp(g);
+    return !facts.files.some((f) => re.test(f));
+  });
+  if (dead.length === 0) return [];
+  const all = dead.length === globs.length;
+  return [
+    {
+      check: "globs-match-nothing",
+      severity: "warning",
+      where,
+      message: `${all ? "No glob" : `${dead.length} of ${globs.length} globs`} matches any file: ${dead.join(", ")}.`,
+      fix: all ? "Nothing activates this. Fix the pattern, or delete the node if what it described is gone." : `Remove the dead patterns, or correct them: ${dead.join(", ")}.`
+    }
+  ];
+}
+function checkDanglingPaths(where, body, facts) {
+  if (facts.files.length === 0) return [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const m of body.matchAll(PATH_LIKE)) {
+    const p = m[1];
+    if (!p || facts.files.includes(p) || looksLikeDomain(p)) continue;
+    seen.add(p);
+  }
+  if (seen.size === 0) return [];
+  const all = [...seen];
+  const paths = all.slice(0, 5);
+  const rest = all.length - paths.length;
+  return [
+    {
+      check: "dangling-path",
+      severity: "warning",
+      where,
+      message: `Refers to ${all.length === 1 ? "a path that no longer exists" : `${all.length} paths that no longer exist`}: ${paths.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}.`,
+      fix: "Point at where the code moved, or drop the reference. An agent asked to look there will find nothing and guess."
+    }
+  ];
+}
+function looksLikeDomain(p) {
+  const first = p.slice(0, p.indexOf("/"));
+  return first.includes(".") && !first.startsWith(".");
+}
+function checkWeakActivation(where, skill) {
+  const d = skill.description.trim();
+  if (d.length >= 60 && ACTIVATION_CUE.test(d)) return [];
+  return [
+    {
+      check: "weak-activation",
+      severity: "suggestion",
+      where,
+      message: "The description is what decides whether this skill ever activates, and this one is thin.",
+      fix: "Say when to use it, in the words someone would actually type. Descriptions that only name the topic do not fire."
+    }
+  ];
+}
+var ACTIVATION_CUE = /\b(?:when|use|if|trigger(?:s|ed)?|says?|asks?|invoke[sd]?)\b|\/[a-z][\w-]+|["'\u201c][^"'\u201d]{4,}["'\u201d]/i;
+function checkDuplicates(nodes) {
+  const byBody = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    const key = normalise(n.body);
+    if (key.length < 40) continue;
+    const seen = byBody.get(key);
+    if (seen) seen.push(n.where);
+    else byBody.set(key, [n.where]);
+  }
+  const out = [];
+  for (const group of byBody.values()) {
+    if (group.length < 2) continue;
+    const [first, ...rest] = [...group].sort();
+    const shown = rest.slice(0, 4);
+    const more = rest.length - shown.length;
+    out.push({
+      check: "duplicate-body",
+      severity: "warning",
+      where: first,
+      message: `Identical to ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}.`,
+      fix: "Keep one. Two copies drift, and then agents get told two different things by files that used to agree."
+    });
+  }
+  return out;
+}
+function checkContradictions(rules) {
+  const against = /* @__PURE__ */ new Map();
+  for (let i = 0; i < rules.length; i++) {
+    for (let j = i + 1; j < rules.length; j++) {
+      const a = rules[i];
+      const b = rules[j];
+      if (!a || !b) continue;
+      if (!scopesOverlap(a.rule, b.rule)) continue;
+      const shared = sharedSubject(a.rule.body, b.rule.body);
+      if (!shared) continue;
+      const pa = polarityAbout(a.rule.body, shared);
+      const pb = polarityAbout(b.rule.body, shared);
+      if (!pa || !pb || pa === pb) continue;
+      const entry = against.get(a.where);
+      if (entry) entry.with.push(b.where);
+      else against.set(a.where, { with: [b.where], subject: shared });
+    }
+  }
+  const out = [];
+  for (const [where, { with: others, subject }] of against) {
+    const shown = others.slice(0, 3);
+    const more = others.length - shown.length;
+    out.push({
+      check: "contradiction",
+      severity: "warning",
+      where,
+      message: `Says the opposite of ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""} about "${subject}", and their scopes overlap.`,
+      fix: "Decide which one is true and delete the other, or scope them so they cannot both apply."
+    });
+  }
+  return out;
+}
+function sentences(body) {
+  return body.split(/(?<=[.!?;])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
+}
+function polarityAbout(body, subject) {
+  const mentions = new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  for (const sentence2 of sentences(body)) {
+    if (!mentions.test(sentence2)) continue;
+    if (NEGATIVE.test(sentence2)) return "against";
+    if (POSITIVE.test(sentence2)) return "for";
+  }
+  return null;
+}
+function scopesOverlap(a, b) {
+  const aWide = a.alwaysApply || a.globs.length === 0;
+  const bWide = b.alwaysApply || b.globs.length === 0;
+  if (aWide || bWide) return true;
+  return a.globs.some((g) => b.globs.some((h) => globsOverlap(g, h)));
+}
+function sharedSubject(a, b) {
+  const shared = phrases(a);
+  for (const phrase of phrases(b)) if (shared.has(phrase)) return phrase;
+  return null;
+}
+function phrases(body) {
+  const words = body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? [];
+  const out = /* @__PURE__ */ new Set();
+  for (let i = 0; i + 1 < words.length; i++) {
+    const first = words[i];
+    const second = words[i + 1];
+    if (!first || !second) continue;
+    if (STOP.has(first) && STOP.has(second)) continue;
+    out.add(`${first} ${second}`);
+  }
+  return out;
+}
+var STOP = /* @__PURE__ */ new Set([
+  "about",
+  "after",
+  "again",
+  "against",
+  "because",
+  "before",
+  "being",
+  "between",
+  "could",
+  "every",
+  "first",
+  "other",
+  "should",
+  "their",
+  "there",
+  "these",
+  "thing",
+  "those",
+  "under",
+  "until",
+  "where",
+  "which",
+  "while",
+  "would",
+  "always",
+  "never",
+  "avoid",
+  "prefer"
+]);
+function inspect2(model, facts) {
+  const out = [];
+  const bodies = [];
+  const rules = [];
+  for (const rule of model.rules) {
+    const where = `rules/${rule.name}`;
+    out.push(...checkEmptyBody(where, rule.body));
+    if (rule.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, rule.body, facts));
+      bodies.push({ where, body: rule.body });
+      rules.push({ where, rule });
+    }
+    out.push(...checkNeverCompiles(where, rule, facts));
+    out.push(...checkGlobsIgnored(where, rule));
+    out.push(...checkGlobsMatchNothing(where, rule.globs, facts));
+  }
+  for (const skill of model.skills) {
+    const where = `skills/${skill.name}`;
+    out.push(...checkEmptyBody(where, skill.body));
+    if (skill.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, skill.body, facts));
+      bodies.push({ where, body: skill.body });
+    }
+    out.push(...checkNeverCompiles(where, skill, facts));
+    out.push(...checkGlobsMatchNothing(where, skill.globs, facts));
+    out.push(...checkWeakActivation(where, skill));
+  }
+  for (const agent of model.agents) {
+    const where = `agents/${agent.name}`;
+    out.push(...checkEmptyBody(where, agent.body));
+    out.push(...checkNeverCompiles(where, agent, facts));
+    if (agent.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, agent.body, facts));
+      bodies.push({ where, body: agent.body });
+    }
+  }
+  for (const command of model.commands) {
+    const where = `commands/${command.name}`;
+    out.push(...checkEmptyBody(where, command.body));
+    out.push(...checkNeverCompiles(where, command, facts));
+    if (command.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, command.body, facts));
+      bodies.push({ where, body: command.body });
+    }
+  }
+  if (model.instructions) {
+    out.push(...checkEmptyBody("instructions", model.instructions.body));
+    if (model.instructions.body.trim().length > 0) {
+      out.push(...checkDanglingPaths("instructions", model.instructions.body, facts));
+    }
+  }
+  out.push(...checkDuplicates(bodies));
+  out.push(...checkContradictions(rules));
+  const rank2 = { error: 0, warning: 1, suggestion: 2 };
+  return out.sort(
+    (x, y) => (rank2[x.severity] ?? 3) - (rank2[y.severity] ?? 3) || x.where.localeCompare(y.where) || x.check.localeCompare(y.check)
+  );
+}
+
+// packages/cli/src/commands/advise.ts
+init_src();
+var LABEL = {
+  error: "Does not work",
+  warning: "Probably not what you meant",
+  suggestion: "Worth a look"
+};
+async function adviseCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const json = flagBool(args, "json");
+  const loaded = await loadContext({ root });
+  const tracked = await listTrackedFiles(root);
+  const findings = inspect2(loaded.model, {
+    files: tracked ?? [],
+    targets: loaded.config.targets
+  });
+  if (json) {
+    info(JSON.stringify({ findings, checked: countOf(loaded.model) }, null, 2));
+    return 0;
+  }
+  if (findings.length === 0) {
+    success("Nothing to say. Every rule reaches a target, applies to something, and agrees with the others.");
+    if (tracked === null) hintNoGit();
+    return 0;
+  }
+  for (const severity of ["error", "warning", "suggestion"]) {
+    const group = findings.filter((f) => f.severity === severity);
+    if (group.length === 0) continue;
+    heading(LABEL[severity]);
+    for (const f of group) {
+      bullet(`${c.dim(f.where)}  ${f.message}`);
+      info("    " + c.dim(f.fix));
+    }
+  }
+  const errors = findings.filter((f) => f.severity === "error").length;
+  info("");
+  info(
+    errors > 0 ? `${findings.length} to look at, ${errors} of which will not work at all.` : `${findings.length} to look at. Nothing is broken.`
+  );
+  if (tracked === null) hintNoGit();
+  return 0;
+}
+function hintNoGit() {
+  warn("Not a git repository, so dead globs and stale paths were not checked.");
+}
+function countOf(model) {
+  const parts = [
+    [model.rules.length, "rule"],
+    [model.skills.length, "skill"],
+    [model.agents.length, "agent"],
+    [model.commands.length, "command"]
+  ];
+  return parts.filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
+}
+
 // packages/cli/src/commands/handoff.ts
 import { promises as fs22 } from "node:fs";
 import * as path24 from "node:path";
@@ -23483,6 +23826,7 @@ ${c.bold("COMMANDS")}
   add             Install a third-party skill pack
   sync            Compile .ctxmux/ to every configured agent
   check           Verify generated files are in sync; exits non-zero if not (for CI)
+  advise          Review .ctxmux/ and report what will not work, or not be followed
   doctor          Report anything that will fail silently
   map             Query the repository index and print a token-budgeted map
 
@@ -23552,6 +23896,8 @@ async function main() {
       return importCommand(args);
     case "sync":
       return syncCommand(args);
+    case "advise":
+      return adviseCommand(args);
     case "check":
       return checkCommand(args);
     case "doctor":

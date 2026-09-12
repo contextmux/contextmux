@@ -114,6 +114,9 @@ importers:
       '@contextmux/core':
         specifier: workspace:*
         version: link:../core
+      '@contextmux/council':
+        specifier: workspace:*
+        version: link:../council
       '@contextmux/eval':
         specifier: workspace:*
         version: link:../eval

@@ -133,8 +133,14 @@ Without a terminal — a pipe, a CI runner, `--yes` — it asks nothing and uses
 
 ```bash
 ctxmux doctor            # anything that will fail silently
+ctxmux advise            # rules that will not work, or will not be followed
 ctxmux sync --explain    # what each agent cannot represent
 ```
+
+`doctor` checks the plumbing. `advise` reads the rules: a rule scoped to files that do not
+exist, one restricted to an agent you do not compile for, two rules that contradict each other,
+a skill whose description is too thin to ever activate. It needs no network and costs nothing,
+and it exits zero — these are things to look at, not a build failure.
 
 ### 5. Undo it, or keep it
 
@@ -455,6 +461,7 @@ than quietly editing your checkout.
 | `ctxmux sync` | Compile to every configured target |
 | `ctxmux check` | Verify generated files are current; non-zero exit if not |
 | `ctxmux doctor` | Report what will fail silently |
+| `ctxmux advise` | Review the rules themselves and say what will not work, or not be followed |
 | `ctxmux map` | Query the repository index |
 | `ctxmux run` | Drive a task to a proposed change, under gates |
 | `ctxmux status` | Show recorded runs and what is waiting on you |

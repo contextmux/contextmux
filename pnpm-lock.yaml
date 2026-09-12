@@ -156,6 +156,15 @@ importers:
 
   packages/core: {}
 
+  packages/council:
+    dependencies:
+      '@contextmux/context':
+        specifier: workspace:*
+        version: link:../context
+      '@contextmux/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/eval:
     dependencies:
       '@contextmux/core':

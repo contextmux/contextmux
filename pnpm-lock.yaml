@@ -98,6 +98,9 @@ importers:
       '@contextmux/agent-claude':
         specifier: workspace:*
         version: link:../agent-claude
+      '@contextmux/agent-cli':
+        specifier: workspace:*
+        version: link:../agent-cli
       '@contextmux/agent-codex':
         specifier: workspace:*
         version: link:../agent-codex

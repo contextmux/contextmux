@@ -38,6 +38,7 @@ ${c.bold('COMMANDS')}
   sync            Compile .ctxmux/ to every configured agent
   check           Verify generated files are in sync; exits non-zero if not (for CI)
   advise          Review .ctxmux/ and report what will not work, or not be followed
+                  --depth single|panel also asks your agent; the default costs nothing
   doctor          Report anything that will fail silently
   map             Query the repository index and print a token-budgeted map
 

@@ -70,6 +70,19 @@ export const CLAUDE_SPEC: CliAgentSpec = {
   },
 
   /*
+   * Read-only, one turn, no tools.
+   *
+   * `--allowedTools` with an empty list is what makes this safe to point at a repository: no
+   * permission mode is granted, so there is nothing to accept. `--max-turns 1` stops it looping
+   * on a question that has one answer.
+   */
+  askOnly({ prompt, model }) {
+    const args = ['-p', prompt, '--output-format', 'json', '--max-turns', '1', '--allowedTools', '']
+    if (model) args.push('--model', model)
+    return { args }
+  },
+
+  /*
    * Claude Code's streaming format, read off real output rather than documentation.
    *
    * A call and its result arrive as separate events — the call inside an `assistant` message,

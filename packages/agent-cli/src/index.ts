@@ -90,6 +90,16 @@ export interface CliAgentSpec {
     streaming?: boolean
     extraArgs?: string[]
   }): CliInvocation
+  /**
+   * A read-only, single-turn invocation: ask a question, get an answer, touch nothing.
+   *
+   * Separate from `invoke` because that one grants the agent permission to edit — right for a
+   * coding run, wrong for anything that is only being asked its opinion. An agent that cannot
+   * be run this way leaves this undefined and simply is not available as a judge, which is a
+   * better outcome than a question that quietly rewrites the repository.
+   */
+  askOnly?(input: { prompt: string; model?: string }): CliInvocation
+
   /** Interpret stdout. Return null when it could not be understood. */
   parse(stdout: string, stderr: string, exitCode: number): CliOutcome | null
   /** Notes shown by `preflight`, e.g. which environment variable supplies credentials. */
@@ -638,3 +648,71 @@ export function textFromStream(stdout: string): string {
   }
   return parts.join('\n').trim()
 }
+
+/**
+ * Run a spec's read-only invocation and return what it said.
+ *
+ * Everything the orchestration layer does — worktrees, budgets, stall detection, diff parsing —
+ * is absent on purpose. This asks a question.
+ */
+export async function askOnce(
+  spec: CliAgentSpec,
+  input: { prompt: string; bin?: string; model?: string; timeoutMs?: number; signal?: AbortSignal },
+): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
+  if (!spec.askOnly) {
+    return { ok: false, reason: `${spec.displayName} cannot be asked a question without also letting it edit files.` }
+  }
+  const call = spec.askOnly({ prompt: input.prompt, ...(input.model ? { model: input.model } : {}) })
+  const bin = input.bin ?? spec.bin
+  const timeoutMs = input.timeoutMs ?? ASK_TIMEOUT_MS
+  // Imported here rather than at the top, as the rest of this file does: the module is loaded
+  // to read a spec far more often than to run one.
+  const { spawn } = await import('node:child_process')
+
+  return new Promise((resolve) => {
+    const child = spawn(bin, call.args, {
+      windowsHide: true,
+      env: { ...process.env, ...call.env },
+    })
+    let out = ''
+    let err = ''
+    let settled = false
+    const finish = (v: { ok: true; text: string } | { ok: false; reason: string }) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(v)
+    }
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      finish({ ok: false, reason: `${bin} did not answer within ${Math.round(timeoutMs / 1000)}s.` })
+    }, timeoutMs)
+    timer.unref?.()
+    input.signal?.addEventListener('abort', () => {
+      child.kill('SIGKILL')
+      finish({ ok: false, reason: 'cancelled' })
+    })
+
+    child.stdout.on('data', (d: unknown) => (out += String(d)))
+    child.stderr.on('data', (d: unknown) => (err += String(d)))
+    child.on('error', (e: Error) => finish({ ok: false, reason: `${bin} could not be started: ${e.message}` }))
+    if (call.stdin !== undefined) child.stdin.end(call.stdin)
+    else child.stdin.end()
+
+    child.on('close', (code: number | null) => {
+      if (code !== 0) {
+        finish({ ok: false, reason: `${bin} exited ${code}${err.trim() ? `: ${err.trim().slice(0, 200)}` : ''}` })
+        return
+      }
+      // Three shapes, cheapest first: a bare answer, a JSON envelope, a stream transcript.
+      const fromJson = extractJson(out)
+      const text =
+        typeof fromJson?.['result'] === 'string'
+          ? (fromJson['result'] as string)
+          : textFromStream(out) || out
+      finish({ ok: true, text })
+    })
+  })
+}
+
+const ASK_TIMEOUT_MS = 120_000

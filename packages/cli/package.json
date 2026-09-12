@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@contextmux/agent-claude": "workspace:*",
+    "@contextmux/agent-cli": "workspace:*",
     "@contextmux/agent-codex": "workspace:*",
     "@contextmux/agent-copilot": "workspace:*",
     "@contextmux/agent-cursor": "workspace:*",

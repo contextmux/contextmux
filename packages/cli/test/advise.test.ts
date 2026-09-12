@@ -5,8 +5,8 @@
  * and a command that exits non-zero over a thin skill description is one people stop running.
  * `check` is the command that exits non-zero.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { adviseCommand } from '../src/commands/advise.js'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { adviseCommand, withJudge } from '../src/commands/advise.js'
 import { argv, initGit, makeRepo, MINIMAL_CONTEXT, removeRepo, runCli, writeAll } from './helpers.js'
 
 const BROKEN: Record<string, string> = {
@@ -92,5 +92,82 @@ describe('advise', () => {
     expect(parsed.findings.length).toBeGreaterThan(0)
     expect(parsed.findings[0]).toHaveProperty('check')
     expect(parsed.checked).toContain('rule')
+  })
+})
+
+describe('advise --depth', () => {
+  const ctx = { depth: 'single' as const, context: { targets: ['claude'] as const, sampleFiles: [] } }
+  const empty = { rules: [], skills: [], agents: [], commands: [], mcp: [] } as never
+  /** A model with something in it. An empty one never reaches the judge at all. */
+  const oneRule = {
+    rules: [{ name: 'a', globs: [], alwaysApply: false, priority: 50, body: 'Some rule body here.' }],
+    skills: [], agents: [], commands: [], mcp: [],
+  } as never
+  const staticFindings = [
+    { check: 'empty-body', severity: 'error' as const, where: 'rules/a', message: 'm', fix: 'f' },
+  ]
+
+  /** Capture what a call prints, for things that are not commands returning an exit code. */
+  async function capture<T>(fn: () => Promise<T>): Promise<{ value: T; text: string }> {
+    const lines: string[] = []
+    const collect = (...parts: unknown[]) => void lines.push(parts.map(String).join(' '))
+    const log = vi.spyOn(console, 'log').mockImplementation(collect)
+    const err = vi.spyOn(console, 'error').mockImplementation(collect)
+    try {
+      return { value: await fn(), text: lines.join('\n') }
+    } finally {
+      log.mockRestore()
+      err.mockRestore()
+    }
+  }
+
+  it('refuses a depth it does not have, rather than guessing one', async () => {
+    await expect(runCli(adviseCommand, argv(root, 'advise --depth deep'))).rejects.toThrow(
+      /static, single or panel/,
+    )
+  })
+
+  it('keeps the free findings when the judge cannot be reached', async () => {
+    const dead = { id: 'dead', ask: () => Promise.reject(new Error('claude could not be started')) }
+    const { value, text } = await capture(() => withJudge(staticFindings, oneRule, dead, ctx))
+
+    expect(value).toEqual(staticFindings)
+    expect(text).toContain('did not run')
+    expect(text).toContain('could not be started')
+  })
+
+  it('does not reach the judge at all when there is nothing to judge', async () => {
+    let called = false
+    const judge = { id: 'fake', ask: async () => ((called = true), '{"findings":[]}') }
+    await capture(() => withJudge(staticFindings, empty, judge, ctx))
+
+    expect(called).toBe(false)
+  })
+
+  it('adds what the judge found to what was already known', async () => {
+    const judge = {
+      id: 'fake',
+      ask: async () =>
+        JSON.stringify({
+          findings: [{ where: 'rules/a', criterion: 'checkable', message: 'm2', fix: 'f2' }],
+        }),
+    }
+    const { value } = await capture(() => withJudge(staticFindings, oneRule, judge, ctx))
+
+    expect(value).toHaveLength(2)
+    expect(value.map((f) => f.check)).toContain('checkable')
+  })
+
+  it('never lets a judge produce an error, only a suggestion', async () => {
+    const judge = {
+      id: 'fake',
+      ask: async () =>
+        JSON.stringify({
+          findings: [{ where: 'rules/a', criterion: 'checkable', message: 'm', fix: 'f' }],
+        }),
+    }
+    const { value } = await capture(() => withJudge([], oneRule, judge, ctx))
+
+    expect(value.every((f) => f.severity === 'suggestion')).toBe(true)
   })
 })

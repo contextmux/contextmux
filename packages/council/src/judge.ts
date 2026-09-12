@@ -1,5 +1,5 @@
 import type { ContextModel } from '@contextmux/context'
-import { criteriaFor, RUBRIC_VERSION, type Criterion, type Depth, type JudgeContext } from './criteria.js'
+import { CRITERIA, criteriaFor, RUBRIC_VERSION, type Criterion, type Depth, type JudgeContext } from './criteria.js'
 import type { Suggestion } from './types.js'
 
 /**
@@ -21,6 +21,15 @@ export interface CritiqueOptions {
   context: JudgeContext
   /** Answers kept from a previous run, keyed as `cacheKey` returns. */
   cache?: Map<string, Suggestion[]>
+  /**
+   * What the free checks already found.
+   *
+   * Told to the judge so it does not report the same thing again. The static layer and the
+   * `consistent` criterion overlap by design — both look for rules that disagree — and without
+   * this a reader is shown one problem twice, once as a warning and once as a suggestion, which
+   * is precisely the noise this whole layer exists to reduce.
+   */
+  known?: Suggestion[]
 }
 
 export interface CritiqueResult {
@@ -48,6 +57,26 @@ export interface CritiqueResult {
  */
 export function cacheKey(body: string, depth: Depth, setHash?: string): string {
   return `${RUBRIC_VERSION}:${depth}:${hash(body)}${setHash ? `:${setHash}` : ''}`
+}
+
+/**
+ * Drop the one overlap the prompt asks a judge to avoid but cannot be relied on to.
+ *
+ * `consistent` and the static `contradiction` check ask the same question — do these two rules
+ * disagree — so a rule caught by both is one problem reported twice, at two severities. The
+ * prompt says not to repeat prior findings, and a model will mostly comply; mostly is not a
+ * property worth shipping when the deterministic version is three lines.
+ *
+ * Deliberately narrow. Only that pair, and only on the same rule: a rule can have a
+ * contradiction and an unrelated problem, and dropping the second would be worse than printing
+ * the first twice.
+ */
+function withoutRepeats(findings: Suggestion[], known: Suggestion[]): Suggestion[] {
+  const alreadyContradicting = new Set(
+    known.filter((k) => k.check === 'contradiction').map((k) => k.where),
+  )
+  if (alreadyContradicting.size === 0) return findings
+  return findings.filter((f) => !(f.check === 'consistent' && alreadyContradicting.has(f.where)))
 }
 
 /** A judge asked about several criteria at once will sometimes say the same thing twice. */
@@ -125,9 +154,12 @@ export async function critique(
   }
   if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0, promptChars: 0 }
 
-  const prompt = buildPrompt(fresh, criteria, opts.context)
+  const prompt = buildPrompt(fresh, criteria, opts.context, opts.known)
   const answer = await judge.ask(prompt)
-  const findings = dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where))))
+  const findings = withoutRepeats(
+    dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where)))),
+    opts.known ?? [],
+  )
 
   if (cache) {
     // Every node asked about is recorded, including the ones with nothing wrong. Otherwise a
@@ -162,7 +194,12 @@ function clip(body: string): string {
   return `${body.slice(0, BODY_LIMIT)}\n[...${body.length - BODY_LIMIT} more characters, not shown]`
 }
 
-export function buildPrompt(nodes: Node[], criteria: Criterion[], context: JudgeContext): string {
+export function buildPrompt(
+  nodes: Node[],
+  criteria: Criterion[],
+  context: JudgeContext,
+  known: Suggestion[] = [],
+): string {
   const lines: string[] = [
     'You are reviewing the standing instructions a repository gives its coding agents.',
     '',
@@ -189,6 +226,13 @@ export function buildPrompt(nodes: Node[], criteria: Criterion[], context: Judge
         .join('\n'),
     ),
     '',
+    ...(known.length > 0
+      ? [
+          'Already reported by checks that ran before you. Do not repeat any of these:',
+          ...known.slice(0, 30).map((k) => `- ${k.where}: ${k.message}`),
+          '',
+        ]
+      : []),
     'Report only rules that genuinely fail one of the questions. A rule that is merely plain is',
     'fine; plain rules are the good kind. Reporting nothing is a correct answer and a common one.',
     '',
@@ -222,13 +266,24 @@ export function parseFindings(answer: string, known: Set<string>): Suggestion[] 
     const where = typeof f['where'] === 'string' ? f['where'] : null
     const message = typeof f['message'] === 'string' ? f['message'].trim() : null
     const fix = typeof f['fix'] === 'string' ? f['fix'].trim() : null
-    const criterion = typeof f['criterion'] === 'string' ? f['criterion'] : 'judged'
+    /*
+     * Only a criterion this rubric defines.
+     *
+     * A judge asked for `criterion` will sometimes answer with something else, and a model that
+     * returns "empty-body" produces a finding wearing the name of a static check — the same
+     * label a reader has learned means "this compiles to nothing", at a severity that says the
+     * opposite. Anything unrecognised becomes `judged`, which claims nothing.
+     */
+    const named = typeof f['criterion'] === 'string' ? f['criterion'] : ''
+    const criterion = KNOWN_CRITERIA.has(named) ? named : 'judged'
     if (!where || !message || !fix) continue
     if (!known.has(where)) continue
     out.push({ check: criterion, severity: 'suggestion', where, message, fix })
   }
   return out.sort((a, b) => a.where.localeCompare(b.where) || a.check.localeCompare(b.check))
 }
+
+const KNOWN_CRITERIA = new Set(CRITERIA.map((c) => c.id))
 
 /** The first balanced `{...}` that parses. Handles fences, prose, and trailing chatter. */
 function extractObject(text: string): unknown {

@@ -72,6 +72,53 @@ describe('asking', () => {
     expect(r.asked).toBe(0)
   })
 
+  it('tells the judge what the free checks already found, so it does not repeat them', async () => {
+    const judge = fake('{"findings":[]}')
+    await critique(model({ rules: [rule()] }), judge, {
+      depth: 'panel',
+      context: CONTEXT,
+      known: [{ check: 'contradiction', severity: 'warning', where: 'rules/a', message: 'Says the opposite of rules/b.', fix: 'Pick one.' }],
+    })
+
+    expect(judge.prompts[0]).toContain('Do not repeat any of these')
+    expect(judge.prompts[0]).toContain('Says the opposite of rules/b.')
+  })
+
+  it('drops a consistency finding the free checks already reported', async () => {
+    // The prompt asks a judge not to repeat prior findings and a model mostly complies. Mostly
+    // is not worth shipping when the deterministic version is three lines.
+    const repeated = JSON.stringify({
+      findings: [{ where: 'rules/a', criterion: 'consistent', message: 'Conflicts with rules/b.', fix: 'Pick one.' }],
+    })
+    const r = await critique(model({ rules: [rule()] }), fake(repeated), {
+      depth: 'panel',
+      context: CONTEXT,
+      known: [{ check: 'contradiction', severity: 'warning', where: 'rules/a', message: 'm', fix: 'f' }],
+    })
+
+    expect(r.findings).toEqual([])
+  })
+
+  it('keeps an unrelated finding about a rule that also contradicts another', async () => {
+    const other = JSON.stringify({
+      findings: [{ where: 'rules/a', criterion: 'actionable', message: 'Describes only.', fix: 'Instruct.' }],
+    })
+    const r = await critique(model({ rules: [rule()] }), fake(other), {
+      depth: 'panel',
+      context: CONTEXT,
+      known: [{ check: 'contradiction', severity: 'warning', where: 'rules/a', message: 'm', fix: 'f' }],
+    })
+
+    expect(r.findings.map((f) => f.check)).toEqual(['actionable'])
+  })
+
+  it('says nothing about prior findings when there are none', async () => {
+    const judge = fake('{"findings":[]}')
+    await critique(model({ rules: [rule()] }), judge, { depth: 'single', context: CONTEXT })
+
+    expect(judge.prompts[0]).not.toContain('Do not repeat')
+  })
+
   it('tells the judge that saying nothing is a correct answer', () => {
     const p = buildPrompt([{ where: 'rules/a', body: 'x' }], criteriaFor('single'), CONTEXT)
     expect(p).toContain('Reporting nothing is a correct answer')
@@ -269,6 +316,22 @@ describe('reading the answer', () => {
     })
     const r = await critique(model({ rules: [rule()] }), fake(twice), { depth: 'single', context: CONTEXT })
     expect(r.findings).toHaveLength(1)
+  })
+
+  it('refuses a criterion this rubric does not define', () => {
+    // A model returning "empty-body" would otherwise produce a finding wearing the name of a
+    // static check, at the severity that means the opposite of what a reader has learned it to.
+    const impostor = JSON.stringify({
+      findings: [{ where: 'rules/a', criterion: 'empty-body', message: 'm', fix: 'f' }],
+    })
+    expect(parseFindings(impostor, known)[0]?.check).toBe('judged')
+  })
+
+  it('keeps a criterion the rubric does define', () => {
+    const real = JSON.stringify({
+      findings: [{ where: 'rules/a', criterion: 'actionable', message: 'm', fix: 'f' }],
+    })
+    expect(parseFindings(real, known)[0]?.check).toBe('actionable')
   })
 
   it('marks everything a judge says as a suggestion, never an error', () => {

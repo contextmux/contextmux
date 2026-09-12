@@ -102,7 +102,7 @@ export async function withJudge(
   opts: Parameters<typeof critique>[2] & { depth: Exclude<Depth, 'static'> },
 ): Promise<Suggestion[]> {
   try {
-    const result = await critique(model, judge, opts)
+    const result = await critique(model, judge, { ...opts, known: staticFindings })
     return [...staticFindings, ...result.findings]
   } catch (e) {
     warn(`The ${opts.depth} review did not run: ${e instanceof Error ? e.message : String(e)}`)

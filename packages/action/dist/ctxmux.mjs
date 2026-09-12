@@ -17957,6 +17957,13 @@ function criteriaFor(depth) {
 function cacheKey(body, depth, setHash) {
   return `${RUBRIC_VERSION}:${depth}:${hash(body)}${setHash ? `:${setHash}` : ""}`;
 }
+function withoutRepeats(findings, known) {
+  const alreadyContradicting = new Set(
+    known.filter((k) => k.check === "contradiction").map((k) => k.where)
+  );
+  if (alreadyContradicting.size === 0) return findings;
+  return findings.filter((f) => !(f.check === "consistent" && alreadyContradicting.has(f.where)));
+}
 function dedupe(findings) {
   const seen = /* @__PURE__ */ new Set();
   return findings.filter((f) => {
@@ -17997,9 +18004,12 @@ async function critique(model, judge, opts) {
     else fresh.push(node);
   }
   if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0, promptChars: 0 };
-  const prompt = buildPrompt(fresh, criteria, opts.context);
+  const prompt = buildPrompt(fresh, criteria, opts.context, opts.known);
   const answer = await judge.ask(prompt);
-  const findings = dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where))));
+  const findings = withoutRepeats(
+    dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where)))),
+    opts.known ?? []
+  );
   if (cache) {
     for (const node of fresh) {
       cache.set(
@@ -18021,7 +18031,7 @@ function clip(body) {
   return `${body.slice(0, BODY_LIMIT)}
 [...${body.length - BODY_LIMIT} more characters, not shown]`;
 }
-function buildPrompt(nodes, criteria, context) {
+function buildPrompt(nodes, criteria, context, known = []) {
   const lines = [
     "You are reviewing the standing instructions a repository gives its coding agents.",
     "",
@@ -18046,6 +18056,11 @@ function buildPrompt(nodes, criteria, context) {
       (n) => [`### ${n.where}`, n.description ? `description: ${n.description}` : "", clip(n.body), ""].filter(Boolean).join("\n")
     ),
     "",
+    ...known.length > 0 ? [
+      "Already reported by checks that ran before you. Do not repeat any of these:",
+      ...known.slice(0, 30).map((k) => `- ${k.where}: ${k.message}`),
+      ""
+    ] : [],
     "Report only rules that genuinely fail one of the questions. A rule that is merely plain is",
     "fine; plain rules are the good kind. Reporting nothing is a correct answer and a common one.",
     "",
@@ -18069,13 +18084,15 @@ function parseFindings(answer, known) {
     const where = typeof f["where"] === "string" ? f["where"] : null;
     const message = typeof f["message"] === "string" ? f["message"].trim() : null;
     const fix = typeof f["fix"] === "string" ? f["fix"].trim() : null;
-    const criterion = typeof f["criterion"] === "string" ? f["criterion"] : "judged";
+    const named = typeof f["criterion"] === "string" ? f["criterion"] : "";
+    const criterion = KNOWN_CRITERIA.has(named) ? named : "judged";
     if (!where || !message || !fix) continue;
     if (!known.has(where)) continue;
     out.push({ check: criterion, severity: "suggestion", where, message, fix });
   }
   return out.sort((a, b) => a.where.localeCompare(b.where) || a.check.localeCompare(b.check));
 }
+var KNOWN_CRITERIA = new Set(CRITERIA.map((c2) => c2.id));
 function extractObject(text) {
   const start = text.indexOf("{");
   if (start < 0) return null;
@@ -18308,7 +18325,7 @@ function parseDepth(raw) {
 }
 async function withJudge(staticFindings, model, judge, opts) {
   try {
-    const result = await critique(model, judge, opts);
+    const result = await critique(model, judge, { ...opts, known: staticFindings });
     return [...staticFindings, ...result.findings];
   } catch (e) {
     warn(`The ${opts.depth} review did not run: ${e instanceof Error ? e.message : String(e)}`);

@@ -97,7 +97,7 @@ export function synthesise(all: Proposal[], limit: number): Proposal[] {
     else groups.push([proposal])
   }
 
-  return groups
+  const ranked = groups
     .map((group) => {
       // The longest body in a group is usually the most specific, and specificity is the thing
       // these rules are short of. Personas are listed in a stable order so the output does not
@@ -107,6 +107,31 @@ export function synthesise(all: Proposal[], limit: number): Proposal[] {
     })
     .sort((a, b) => b.from.length - a.from.length || a.name.localeCompare(b.name))
     .slice(0, limit)
+
+  return unique(ranked)
+}
+
+/**
+ * Make the slugs distinct, because they become filenames.
+ *
+ * Two voices can arrive at unrelated rules and give them the same obvious name — `style`,
+ * `testing` — and the merge above only joins proposals that say the same thing, not ones that
+ * happen to agree on a title. Left alone, the second rule is written to a path the first just
+ * occupied and reported back as "already there, left alone", which is both a lost rule and a
+ * sentence that means something else entirely.
+ */
+function unique(proposals: Proposal[]): Proposal[] {
+  const taken = new Set<string>()
+  return proposals.map((p) => {
+    if (!taken.has(p.name)) {
+      taken.add(p.name)
+      return p
+    }
+    let n = 2
+    while (taken.has(`${p.name}-${n}`)) n++
+    taken.add(`${p.name}-${n}`)
+    return { ...p, name: `${p.name}-${n}` }
+  })
 }
 
 export function buildPersonaPrompt(persona: Persona, facts: RepoFactsForGeneration): string {

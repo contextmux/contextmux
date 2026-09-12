@@ -29,6 +29,14 @@ export interface CritiqueResult {
   reused: number
   /** Nodes actually sent. The number that costs money. */
   asked: number
+  /**
+   * Size of the request, so a caller can say what it is about to spend.
+   *
+   * There is deliberately no ceiling on the whole prompt, only on one body. Truncating the set
+   * would review some of somebody's rules and stay silent about which — worse than an expensive
+   * request they were told about.
+   */
+  promptChars: number
 }
 
 /**
@@ -38,8 +46,19 @@ export interface CritiqueResult {
  * editing one does. `RUBRIC_VERSION` is in the key because a changed question invalidates every
  * previous answer — without it the cache serves verdicts nobody would reach today.
  */
-export function cacheKey(body: string, depth: Depth): string {
-  return `${RUBRIC_VERSION}:${depth}:${hash(body)}`
+export function cacheKey(body: string, depth: Depth, setHash?: string): string {
+  return `${RUBRIC_VERSION}:${depth}:${hash(body)}${setHash ? `:${setHash}` : ''}`
+}
+
+/** A judge asked about several criteria at once will sometimes say the same thing twice. */
+function dedupe(findings: Suggestion[]): Suggestion[] {
+  const seen = new Set<string>()
+  return findings.filter((f) => {
+    const k = `${f.where}\u0000${f.check}\u0000${f.message}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
 }
 
 /** FNV-1a. Not cryptographic — this only has to notice that a body changed. */
@@ -79,36 +98,68 @@ export async function critique(
   opts: CritiqueOptions,
 ): Promise<CritiqueResult> {
   const criteria = criteriaFor(opts.depth)
-  if (criteria.length === 0) return { findings: [], reused: 0, asked: 0 }
+  if (criteria.length === 0) return { findings: [], reused: 0, asked: 0, promptChars: 0 }
 
   const nodes = nodesOf(model)
-  if (nodes.length === 0) return { findings: [], reused: 0, asked: 0 }
+  if (nodes.length === 0) return { findings: [], reused: 0, asked: 0, promptChars: 0 }
+
+  /*
+   * A relational criterion is a fact about a pair, so it cannot be answered from a cache keyed
+   * on one rule. Sending only the rules that changed would ask a judge whether a rule conflicts
+   * with rules it was never shown, and it would dutifully answer no.
+   *
+   * So when one is in play the key covers every body, not just this one. A change to any rule
+   * changes the key for all of them, so the whole set is re-asked together and the judge always
+   * sees every rule it is being asked to compare.
+   */
+  const relational = criteria.some((c) => c.relational)
+  const setHash = relational ? hash(nodes.map((n) => n.body).join('\u0000')) : undefined
 
   const cache = opts.cache
   const cached: Suggestion[] = []
   const fresh: Node[] = []
   for (const node of nodes) {
-    const hit = cache?.get(cacheKey(node.body, opts.depth))
+    const hit = cache?.get(cacheKey(node.body, opts.depth, setHash))
     if (hit) cached.push(...hit)
     else fresh.push(node)
   }
-  if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0 }
+  if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0, promptChars: 0 }
 
-  const answer = await judge.ask(buildPrompt(fresh, criteria, opts.context))
-  const findings = parseFindings(answer, new Set(fresh.map((n) => n.where)))
+  const prompt = buildPrompt(fresh, criteria, opts.context)
+  const answer = await judge.ask(prompt)
+  const findings = dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where))))
 
   if (cache) {
     // Every node asked about is recorded, including the ones with nothing wrong. Otherwise a
     // clean rule is re-sent on every run and the cache only ever helps the broken ones.
     for (const node of fresh) {
       cache.set(
-        cacheKey(node.body, opts.depth),
+        cacheKey(node.body, opts.depth, setHash),
         findings.filter((f) => f.where === node.where),
       )
     }
   }
 
-  return { findings: [...cached, ...findings], reused: nodes.length - fresh.length, asked: fresh.length }
+  return {
+    findings: [...cached, ...findings],
+    reused: nodes.length - fresh.length,
+    asked: fresh.length,
+    promptChars: prompt.length,
+  }
+}
+
+/**
+ * A rule long enough to matter here is already a finding.
+ *
+ * Without a ceiling the prompt is however long the rules are, and forty verbose rules produced
+ * an eighty-kilobyte request — paid for on every run, and at panel depth several times over. A
+ * rule past this length is not one an agent reads carefully either.
+ */
+const BODY_LIMIT = 1500
+
+function clip(body: string): string {
+  if (body.length <= BODY_LIMIT) return body
+  return `${body.slice(0, BODY_LIMIT)}\n[...${body.length - BODY_LIMIT} more characters, not shown]`
 }
 
 export function buildPrompt(nodes: Node[], criteria: Criterion[], context: JudgeContext): string {
@@ -132,7 +183,11 @@ export function buildPrompt(nodes: Node[], criteria: Criterion[], context: Judge
     '',
     'The rules:',
     '',
-    ...nodes.map((n) => [`### ${n.where}`, n.description ? `description: ${n.description}` : '', n.body, ''].filter(Boolean).join('\n')),
+    ...nodes.map((n) =>
+      [`### ${n.where}`, n.description ? `description: ${n.description}` : '', clip(n.body), '']
+        .filter(Boolean)
+        .join('\n'),
+    ),
     '',
     'Report only rules that genuinely fail one of the questions. A rule that is merely plain is',
     'fine; plain rules are the good kind. Reporting nothing is a correct answer and a common one.',

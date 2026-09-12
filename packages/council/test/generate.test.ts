@@ -156,6 +156,22 @@ describe('synthesis', () => {
     expect(synthesise(many, 20)).toHaveLength(subjects.length)
   })
 
+  it('makes the slugs distinct, since they become filenames', () => {
+    // Two voices can give unrelated rules the same obvious title. Written as-is, the second
+    // lands on the path the first just took and is reported as somebody's own file.
+    const out = synthesise(
+      [
+        proposal({ name: 'style', body: 'Never commit lockfile changes without running install.', from: ['a'] }),
+        proposal({ name: 'style', body: 'Always regenerate the schema after editing migrations.', from: ['b'] }),
+      ],
+      8,
+    )
+
+    expect(out).toHaveLength(2)
+    expect(new Set(out.map((p) => p.name)).size).toBe(2)
+    expect(out.map((p) => p.name)).toContain('style-2')
+  })
+
   it('orders the same input the same way twice', () => {
     const input = [proposal({ name: 'b' }), proposal({ name: 'a', body: 'Always run the linter first.' })]
     expect(synthesise(input, 8)).toEqual(synthesise(input, 8))

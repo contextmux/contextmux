@@ -256,11 +256,18 @@ function sentences(body: string): string[] {
     .filter(Boolean)
 }
 
-/** Whether the rule is for or against the subject, read from the clause that names it. */
+/**
+ * Whether the rule is for or against the subject, read from the clause that names it.
+ *
+ * The subject's two words are looked for separately rather than as an adjacent pair, because
+ * `phrases` drops function words when building them: "always run the linter" yields `run
+ * linter`, which never appears literally in the sentence it came from. Matching the phrase as
+ * written found only subjects whose words happened to be adjacent, and silently missed the rest.
+ */
 function polarityAbout(body: string, subject: string): 'for' | 'against' | null {
-  const mentions = new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i')
+  const words = subject.split(' ').map((w) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'))
   for (const sentence of sentences(body)) {
-    if (!mentions.test(sentence)) continue
+    if (!words.every((w) => w.test(sentence))) continue
     // Negation first: "never use X" is against X, even though it contains "use".
     if (NEGATIVE.test(sentence)) return 'against'
     if (POSITIVE.test(sentence)) return 'for'

@@ -288,6 +288,23 @@ describe('two nodes that disagree', () => {
     expect(checks(found)).not.toContain('contradiction')
   })
 
+  it('sees a subject whose words are not adjacent in the sentence', () => {
+    // `phrases` drops function words, so "always run the linter" yields `run linter` — a phrase
+    // that never appears literally in the sentence it came from. Matching it as written found
+    // only subjects that happened to be adjacent, and missed every one like this.
+    const found = inspect(
+      model({
+        rules: [
+          rule({ name: 'a', body: 'Always run the linter before committing.' }),
+          rule({ name: 'b', body: 'Never run the linter before committing.' }),
+        ],
+      }),
+      FACTS,
+    )
+
+    expect(checks(found)).toContain('contradiction')
+  })
+
   it('does not treat a shared common noun as a shared subject', () => {
     // Both mention "directory" with opposing polarity and have nothing to do with each other.
     // This pair is from this repository, and an earlier version accused it of contradicting.

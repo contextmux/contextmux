@@ -19,6 +19,15 @@ export interface Criterion {
   rationale: string
   /** The cheapest depth that can decide it. */
   minDepth: Depth
+  /**
+   * Whether answering it requires seeing the other rules.
+   *
+   * A relational criterion cannot be cached per rule: whether one rule pulls against another is
+   * a fact about the pair, and it changes when either of them does. Marking it here is what
+   * stops the cache from quietly sending a judge a single rule and asking whether it conflicts
+   * with rules it was not shown.
+   */
+  relational?: boolean
 }
 
 /**
@@ -79,6 +88,7 @@ export const CRITERIA: Criterion[] = [
   {
     id: 'consistent',
     question: 'Does this sit comfortably beside the other rules, or does it pull against one?',
+    relational: true,
     rationale:
       'Two rules that disagree make an agent pick, and it will pick differently each time. ' +
       'The static layer catches only the blatant cases — opposite directives about the same ' +

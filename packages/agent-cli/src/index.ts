@@ -668,6 +668,10 @@ export async function askOnce(
   // Imported here rather than at the top, as the rest of this file does: the module is loaded
   // to read a spec far more often than to run one.
   const { spawn } = await import('node:child_process')
+  // The await above is a window in which an abort can arrive, and a listener attached to an
+  // already-aborted signal never fires — so a caller who cancels immediately would otherwise
+  // wait out the whole timeout for a process it no longer wants.
+  if (input.signal?.aborted) return { ok: false, reason: 'cancelled' }
 
   return new Promise((resolve) => {
     const child = spawn(bin, call.args, {
@@ -681,21 +685,48 @@ export async function askOnce(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      // Removed rather than left attached: a caller reusing one controller across several
+      // questions would otherwise accumulate a listener per call, each killing a dead child.
+      input.signal?.removeEventListener('abort', onAbort)
       resolve(v)
+    }
+    const onAbort = () => {
+      child.kill('SIGKILL')
+      finish({ ok: false, reason: 'cancelled' })
     }
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
       finish({ ok: false, reason: `${bin} did not answer within ${Math.round(timeoutMs / 1000)}s.` })
     }, timeoutMs)
     timer.unref?.()
-    input.signal?.addEventListener('abort', () => {
-      child.kill('SIGKILL')
-      finish({ ok: false, reason: 'cancelled' })
-    })
+    input.signal?.addEventListener('abort', onAbort, { once: true })
 
-    child.stdout.on('data', (d: unknown) => (out += String(d)))
-    child.stderr.on('data', (d: unknown) => (err += String(d)))
+    child.stdout.on('data', (d: unknown) => {
+      out += String(d)
+      // An agent answering a question does not produce a megabyte. One that is looping will,
+      // and accumulating it costs memory for output nobody is going to read.
+      if (out.length > OUTPUT_LIMIT) {
+        child.kill('SIGKILL')
+        finish({ ok: false, reason: `${bin} produced more than ${OUTPUT_LIMIT / 1000}kB without finishing.` })
+      }
+    })
+    child.stderr.on('data', (d: unknown) => {
+      if (err.length < OUTPUT_LIMIT) err += String(d)
+    })
     child.on('error', (e: Error) => finish({ ok: false, reason: `${bin} could not be started: ${e.message}` }))
+    /*
+     * Defensive, and deliberately so.
+     *
+     * A CLI taking its prompt as an argument never reads stdin, and writing to a pipe whose
+     * reader has gone raises EPIPE on this stream. An unhandled error event on a stream is
+     * thrown, which would take down the whole command rather than returning a reason — and it
+     * is reachable: a child that exits while a large prompt is still draining does exactly this.
+     *
+     * The test below hands stdin to a process that exits at once, which is the closest this can
+     * be driven from here, and it passes with or without this line. Kept anyway: a one-line
+     * guard against a documented crash is worth more than the evidence it is missing.
+     */
+    child.stdin.on('error', () => {})
     if (call.stdin !== undefined) child.stdin.end(call.stdin)
     else child.stdin.end()
 
@@ -716,3 +747,4 @@ export async function askOnce(
 }
 
 const ASK_TIMEOUT_MS = 120_000
+const OUTPUT_LIMIT = 2_000_000

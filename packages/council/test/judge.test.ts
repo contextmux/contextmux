@@ -124,6 +124,101 @@ describe('the cache', () => {
   })
 })
 
+describe('criteria that need the whole set', () => {
+  const shared = { depth: 'panel' as const, context: CONTEXT }
+
+  it('shows the judge every rule, even the ones it has already judged', async () => {
+    const cache = new Map<string, Suggestion[]>()
+    const first = fake('{"findings":[]}')
+    await critique(model({ rules: [rule({ name: 'a', body: 'Always use barrel exports here.' })] }), first, { ...shared, cache })
+
+    const second = fake('{"findings":[]}')
+    await critique(
+      model({
+        rules: [
+          rule({ name: 'a', body: 'Always use barrel exports here.' }),
+          rule({ name: 'b', body: 'Never use barrel exports anywhere.' }),
+        ],
+      }),
+      second,
+      { ...shared, cache },
+    )
+
+    // Asking "does this conflict with the others" while showing only the new rule gets a
+    // confident no. The consistency criterion is the reason the cache cannot be per-rule here.
+    expect(second.prompts[0]).toContain('rules/a')
+    expect(second.prompts[0]).toContain('rules/b')
+  })
+
+  it('still avoids asking twice when nothing changed at all', async () => {
+    const cache = new Map<string, Suggestion[]>()
+    const m = model({ rules: [rule({ body: 'Always use barrel exports here.' })] })
+    await critique(m, fake('{"findings":[]}'), { ...shared, cache })
+
+    const again = fake('{"findings":[]}')
+    const r = await critique(m, again, { ...shared, cache })
+
+    expect(again.prompts).toHaveLength(0)
+    expect(r.reused).toBe(1)
+  })
+
+  it('does not reuse an answer about a set that has since changed', async () => {
+    const cache = new Map<string, Suggestion[]>()
+    const one = model({ rules: [rule({ name: 'a', body: 'Always use barrel exports here.' })] })
+    await critique(one, fake('{"findings":[]}'), { ...shared, cache })
+
+    const two = model({
+      rules: [rule({ name: 'a', body: 'Always use barrel exports here.' }), rule({ name: 'b', body: 'Some other rule body.' })],
+    })
+    const judge = fake('{"findings":[]}')
+    const r = await critique(two, judge, { ...shared, cache })
+
+    expect(judge.prompts).toHaveLength(1)
+    expect(r.reused).toBe(0)
+  })
+
+  it('keeps a single-rule depth cacheable per rule, where that is sound', async () => {
+    const cache = new Map<string, Suggestion[]>()
+    await critique(model({ rules: [rule({ name: 'a' })] }), fake('{"findings":[]}'), { depth: 'single', context: CONTEXT, cache })
+
+    const judge = fake('{"findings":[]}')
+    await critique(
+      model({ rules: [rule({ name: 'a' }), rule({ name: 'b', body: 'A different rule body.' })] }),
+      judge,
+      { depth: 'single', context: CONTEXT, cache },
+    )
+
+    // Only the new one needed asking about.
+    expect(judge.prompts[0]).not.toContain('rules/a')
+    expect(judge.prompts[0]).toContain('rules/b')
+  })
+})
+
+describe('what it costs', () => {
+  it('clips a body long enough to dominate the request', async () => {
+    const judge = fake('{"findings":[]}')
+    await critique(model({ rules: [rule({ body: 'x'.repeat(9000) })] }), judge, { depth: 'single', context: CONTEXT })
+
+    expect(judge.prompts[0]?.length).toBeLessThan(5000)
+    expect(judge.prompts[0]).toContain('more characters, not shown')
+  })
+
+  it('reports the size of what it sent, so a caller can say what it spent', async () => {
+    const r = await critique(model({ rules: [rule()] }), fake('{"findings":[]}'), { depth: 'single', context: CONTEXT })
+    expect(r.promptChars).toBeGreaterThan(100)
+  })
+
+  it('never truncates the set itself, only a single body', async () => {
+    const judge = fake('{"findings":[]}')
+    const many = Array.from({ length: 30 }, (_, i) => rule({ name: `r${i}` }))
+    await critique(model({ rules: many }), judge, { depth: 'single', context: CONTEXT })
+
+    // Reviewing some of somebody's rules while staying quiet about which would be worse than
+    // an expensive request.
+    for (let i = 0; i < 30; i++) expect(judge.prompts[0]).toContain(`rules/r${i}`)
+  })
+})
+
 describe('reading the answer', () => {
   const known = new Set(['rules/a'])
 
@@ -163,6 +258,17 @@ describe('reading the answer', () => {
   it('is not confused by a brace that closes early inside a string', () => {
     const tricky = '{"findings":[{"where":"rules/a","criterion":"c","message":"a } alone","fix":"f"}]}'
     expect(parseFindings(tricky, known)[0]?.message).toBe('a } alone')
+  })
+
+  it('says the same thing once when a judge says it twice', async () => {
+    const twice = JSON.stringify({
+      findings: [
+        { where: 'rules/a', criterion: 'actionable', message: 'm', fix: 'f' },
+        { where: 'rules/a', criterion: 'actionable', message: 'm', fix: 'f' },
+      ],
+    })
+    const r = await critique(model({ rules: [rule()] }), fake(twice), { depth: 'single', context: CONTEXT })
+    expect(r.findings).toHaveLength(1)
   })
 
   it('marks everything a judge says as a suggestion, never an error', () => {

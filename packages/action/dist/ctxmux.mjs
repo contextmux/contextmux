@@ -15571,6 +15571,7 @@ async function askOnce(spec, input) {
   const bin = input.bin ?? spec.bin;
   const timeoutMs = input.timeoutMs ?? ASK_TIMEOUT_MS;
   const { spawn: spawn6 } = await import("node:child_process");
+  if (input.signal?.aborted) return { ok: false, reason: "cancelled" };
   return new Promise((resolve17) => {
     const child = spawn6(bin, call.args, {
       windowsHide: true,
@@ -15583,20 +15584,32 @@ async function askOnce(spec, input) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      input.signal?.removeEventListener("abort", onAbort);
       resolve17(v);
+    };
+    const onAbort = () => {
+      child.kill("SIGKILL");
+      finish({ ok: false, reason: "cancelled" });
     };
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
       finish({ ok: false, reason: `${bin} did not answer within ${Math.round(timeoutMs / 1e3)}s.` });
     }, timeoutMs);
     timer.unref?.();
-    input.signal?.addEventListener("abort", () => {
-      child.kill("SIGKILL");
-      finish({ ok: false, reason: "cancelled" });
+    input.signal?.addEventListener("abort", onAbort, { once: true });
+    child.stdout.on("data", (d) => {
+      out += String(d);
+      if (out.length > OUTPUT_LIMIT) {
+        child.kill("SIGKILL");
+        finish({ ok: false, reason: `${bin} produced more than ${OUTPUT_LIMIT / 1e3}kB without finishing.` });
+      }
     });
-    child.stdout.on("data", (d) => out += String(d));
-    child.stderr.on("data", (d) => err += String(d));
+    child.stderr.on("data", (d) => {
+      if (err.length < OUTPUT_LIMIT) err += String(d);
+    });
     child.on("error", (e) => finish({ ok: false, reason: `${bin} could not be started: ${e.message}` }));
+    child.stdin.on("error", () => {
+    });
     if (call.stdin !== void 0) child.stdin.end(call.stdin);
     else child.stdin.end();
     child.on("close", (code) => {
@@ -15611,6 +15624,7 @@ async function askOnce(spec, input) {
   });
 }
 var ASK_TIMEOUT_MS = 12e4;
+var OUTPUT_LIMIT = 2e6;
 
 // packages/core/src/task.ts
 var CRITERIA_SECTION = /^(?:acceptance criteria|acceptance|requirements?|done when|definition of done|expected behaviours?|expected behaviors?|expected results?|expected outcomes?|expected)\b/;
@@ -17743,9 +17757,9 @@ function sentences(body) {
   return body.split(/(?<=[.!?;])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
 }
 function polarityAbout(body, subject) {
-  const mentions = new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  const words = subject.split(" ").map((w) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"));
   for (const sentence2 of sentences(body)) {
-    if (!mentions.test(sentence2)) continue;
+    if (!words.every((w) => w.test(sentence2))) continue;
     if (NEGATIVE.test(sentence2)) return "against";
     if (POSITIVE.test(sentence2)) return "for";
   }
@@ -17928,6 +17942,7 @@ var CRITERIA = [
   {
     id: "consistent",
     question: "Does this sit comfortably beside the other rules, or does it pull against one?",
+    relational: true,
     rationale: "Two rules that disagree make an agent pick, and it will pick differently each time. The static layer catches only the blatant cases \u2014 opposite directives about the same phrase \u2014 and most real tension is subtler than that.",
     minDepth: "panel"
   }
@@ -17939,8 +17954,17 @@ function criteriaFor(depth) {
 }
 
 // packages/council/src/judge.ts
-function cacheKey(body, depth) {
-  return `${RUBRIC_VERSION}:${depth}:${hash(body)}`;
+function cacheKey(body, depth, setHash) {
+  return `${RUBRIC_VERSION}:${depth}:${hash(body)}${setHash ? `:${setHash}` : ""}`;
+}
+function dedupe(findings) {
+  const seen = /* @__PURE__ */ new Set();
+  return findings.filter((f) => {
+    const k = `${f.where}\0${f.check}\0${f.message}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 function hash(s) {
   let h = 2166136261;
@@ -17959,29 +17983,43 @@ function nodesOf(model) {
 }
 async function critique(model, judge, opts) {
   const criteria = criteriaFor(opts.depth);
-  if (criteria.length === 0) return { findings: [], reused: 0, asked: 0 };
+  if (criteria.length === 0) return { findings: [], reused: 0, asked: 0, promptChars: 0 };
   const nodes = nodesOf(model);
-  if (nodes.length === 0) return { findings: [], reused: 0, asked: 0 };
+  if (nodes.length === 0) return { findings: [], reused: 0, asked: 0, promptChars: 0 };
+  const relational = criteria.some((c2) => c2.relational);
+  const setHash = relational ? hash(nodes.map((n) => n.body).join("\0")) : void 0;
   const cache = opts.cache;
   const cached = [];
   const fresh = [];
   for (const node of nodes) {
-    const hit = cache?.get(cacheKey(node.body, opts.depth));
+    const hit = cache?.get(cacheKey(node.body, opts.depth, setHash));
     if (hit) cached.push(...hit);
     else fresh.push(node);
   }
-  if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0 };
-  const answer = await judge.ask(buildPrompt(fresh, criteria, opts.context));
-  const findings = parseFindings(answer, new Set(fresh.map((n) => n.where)));
+  if (fresh.length === 0) return { findings: cached, reused: nodes.length, asked: 0, promptChars: 0 };
+  const prompt = buildPrompt(fresh, criteria, opts.context);
+  const answer = await judge.ask(prompt);
+  const findings = dedupe(parseFindings(answer, new Set(fresh.map((n) => n.where))));
   if (cache) {
     for (const node of fresh) {
       cache.set(
-        cacheKey(node.body, opts.depth),
+        cacheKey(node.body, opts.depth, setHash),
         findings.filter((f) => f.where === node.where)
       );
     }
   }
-  return { findings: [...cached, ...findings], reused: nodes.length - fresh.length, asked: fresh.length };
+  return {
+    findings: [...cached, ...findings],
+    reused: nodes.length - fresh.length,
+    asked: fresh.length,
+    promptChars: prompt.length
+  };
+}
+var BODY_LIMIT = 1500;
+function clip(body) {
+  if (body.length <= BODY_LIMIT) return body;
+  return `${body.slice(0, BODY_LIMIT)}
+[...${body.length - BODY_LIMIT} more characters, not shown]`;
 }
 function buildPrompt(nodes, criteria, context) {
   const lines = [
@@ -18004,7 +18042,9 @@ function buildPrompt(nodes, criteria, context) {
     "",
     "The rules:",
     "",
-    ...nodes.map((n) => [`### ${n.where}`, n.description ? `description: ${n.description}` : "", n.body, ""].filter(Boolean).join("\n")),
+    ...nodes.map(
+      (n) => [`### ${n.where}`, n.description ? `description: ${n.description}` : "", clip(n.body), ""].filter(Boolean).join("\n")
+    ),
     "",
     "Report only rules that genuinely fail one of the questions. A rule that is merely plain is",
     "fine; plain rules are the good kind. Reporting nothing is a correct answer and a common one.",
@@ -18121,10 +18161,24 @@ function synthesise(all, limit) {
     if (existing) existing.push(proposal);
     else groups.push([proposal]);
   }
-  return groups.map((group) => {
+  const ranked = groups.map((group) => {
     const best = [...group].sort((a, b) => b.body.length - a.body.length)[0];
     return { ...best, from: [...new Set(group.flatMap((g) => g.from))].sort() };
   }).sort((a, b) => b.from.length - a.from.length || a.name.localeCompare(b.name)).slice(0, limit);
+  return unique(ranked);
+}
+function unique(proposals) {
+  const taken = /* @__PURE__ */ new Set();
+  return proposals.map((p) => {
+    if (!taken.has(p.name)) {
+      taken.add(p.name);
+      return p;
+    }
+    let n = 2;
+    while (taken.has(`${p.name}-${n}`)) n++;
+    taken.add(`${p.name}-${n}`);
+    return { ...p, name: `${p.name}-${n}` };
+  });
 }
 function buildPersonaPrompt(persona, facts) {
   const lines = [

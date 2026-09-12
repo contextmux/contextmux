@@ -4,6 +4,7 @@ import { detectTargets, importContext, sync, writeFileAtomic } from '@contextmux
 import { detectProfile } from '@contextmux/repo'
 import { bullet, c, heading, info, success, warn } from '../ui.js'
 import { flagBool, flagString, type ParsedArgs } from '../args.js'
+import { advise, hintNoGit, renderAdvice } from './advise.js'
 import { interactive, selectMany, selectOne } from '../prompt.js'
 import { starterFiles } from '../starter.js'
 import { remainingSetup, workflowFiles } from '../workflows.js'
@@ -56,9 +57,34 @@ function hasGitRemote(root: string): Promise<boolean> {
   })
 }
 
+/**
+ * Report on the model that is now on disk.
+ *
+ * Silent on a clean result only when nobody asked. `init` already prints a lot and a line
+ * confirming that a freshly written starter pack is fine is not worth the reader's attention —
+ * but somebody who typed `--advise` cannot tell that silence apart from a flag that did
+ * nothing, so they get an answer either way.
+ */
+async function reviewWhatIsThere(root: string, asked: boolean): Promise<void> {
+  const { findings, hadFileList } = await advise(root)
+  if (findings.length === 0) {
+    if (asked) {
+      info('')
+      success('Nothing to say about the rules themselves.')
+      if (!hadFileList) hintNoGit()
+    }
+    return
+  }
+  renderAdvice(findings)
+  info('')
+  info(c.dim(`${findings.length} thing(s) to look at. \`ctxmux advise\` shows this again.`))
+  if (!hadFileList) hintNoGit()
+}
+
 export async function initCommand(args: ParsedArgs): Promise<number> {
   const root = flagString(args, 'root') ?? process.cwd()
   const force = flagBool(args, 'force', 'f')
+  const wantAdvice = flagBool(args, 'advise')
 
   const dir = path.join(root, '.ctxmux')
   const already = await fs
@@ -76,6 +102,9 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
      */
     info('.ctxmux/ is already set up — leaving it alone.')
     info('    ' + c.dim('`ctxmux sync` compiles what is there. --force adds any starter files that are missing.'))
+    // Reviewing what is already there is the one thing still worth doing on this path, and it
+    // is why somebody would type `init --advise` at a repository that is set up.
+    if (wantAdvice) await reviewWhatIsThere(root, true)
     return 0
   }
 
@@ -264,6 +293,17 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
     warn('Before the workflow can run:')
     for (const item of remainingSetup(ctx)) bullet(item)
   }
+
+  /*
+   * Always review what landed; the report is silent unless there is something to say.
+   *
+   * This was once gated on having imported existing config, on the theory that the starter pack
+   * is clean by construction and advising after it is noise. It is not: a starter rule whose
+   * globs match nothing in this particular repository is worth hearing about, and the gate
+   * suppressed exactly that. Since the check needs no network and costs nothing, the gate
+   * bought nothing and hid a real case.
+   */
+  await reviewWhatIsThere(root, wantAdvice)
 
   info('')
   info('Next:')

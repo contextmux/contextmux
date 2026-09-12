@@ -9,6 +9,7 @@ import { initCommand } from '../src/commands/init.js'
 import {
   argv,
   exists,
+  initGit,
   initGitWithRemote,
   list,
   makeRepo,
@@ -347,5 +348,75 @@ describe('running init twice', () => {
 
     expect(await read(repo, '.ctxmux/instructions.md')).toBe('MINE\n')
     await removeRepo(repo)
+  })
+})
+
+/**
+ * `init --advise`, and the automatic review on the import path.
+ *
+ * The distinction being protected is between a review nobody asked for and one somebody did.
+ * A freshly scaffolded starter pack is clean by construction, so advising after it is noise —
+ * but an imported CLAUDE.md is exactly where a stale path or a dead glob is hiding.
+ */
+describe('init --advise', () => {
+  /** Somebody's existing config, with two real problems in it. */
+  const EXISTING: Record<string, string> = {
+    'CLAUDE.md': '# Project conventions\n\nAlways mirror src/legacy/handlers.ts when adding an endpoint.\n',
+    '.cursor/rules/style.mdc': [
+      '---',
+      'description: Style',
+      'globs: ["app/**/*.tsx"]',
+      '---',
+      'Never mirror the handlers file; it is being deleted.',
+      '',
+    ].join('\n'),
+  }
+
+  it('stays quiet after a scaffold that has nothing wrong with it', async () => {
+    await initGit(root)
+    const { text } = await runCli(initCommand, argv(root, 'init'))
+
+    expect(text).not.toContain('to look at')
+    expect(text).not.toContain('Nothing to say')
+  })
+
+  it('reviews imported config without being asked, because that is where the problems are', async () => {
+    await writeAll(root, EXISTING)
+    await initGit(root)
+    const { code, text } = await runCli(initCommand, argv(root, 'init'))
+
+    expect(code).toBe(0)
+    expect(text).toContain('src/legacy/handlers.ts')
+    expect(text).toContain('app/**/*.tsx')
+  })
+
+  it('reviews a repository that is already set up, rather than only saying so', async () => {
+    await writeAll(root, EXISTING)
+    await initGit(root)
+    await runCli(initCommand, argv(root, 'init'))
+
+    const { code, text } = await runCli(initCommand, argv(root, 'init --advise'))
+
+    expect(code).toBe(0)
+    expect(text).toContain('already set up')
+    expect(text).toContain('src/legacy/handlers.ts')
+  })
+
+  it('answers a requested review even when there is nothing wrong', async () => {
+    await initGit(root)
+    await runCli(initCommand, argv(root, 'init'))
+
+    const { text } = await runCli(initCommand, argv(root, 'init --advise'))
+
+    // Silence here is indistinguishable from a flag that did nothing.
+    expect(text).toContain('Nothing to say')
+  })
+
+  it('still exits zero when the review finds things', async () => {
+    await writeAll(root, EXISTING)
+    await initGit(root)
+    const { code } = await runCli(initCommand, argv(root, 'init --advise'))
+
+    expect(code).toBe(0)
   })
 })

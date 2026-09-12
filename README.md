@@ -137,6 +137,11 @@ ctxmux advise            # rules that will not work, or will not be followed
 ctxmux sync --explain    # what each agent cannot represent
 ```
 
+`init` runs `advise` for you and stays quiet unless it found something — which matters most
+when it imported config you already had, since that is where a rule pointing at a moved file or
+a glob matching nothing tends to be hiding. `init --advise` asks for the report explicitly, and
+works on a repository that is already set up.
+
 `doctor` checks the plumbing. `advise` reads the rules: a rule scoped to files that do not
 exist, one restricted to an agent you do not compile for, two rules that contradict each other,
 a skill whose description is too thin to ever activate. It needs no network and costs nothing,

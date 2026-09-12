@@ -46,6 +46,7 @@ ${c.bold('COMMON OPTIONS')}
   --targets <list>    Comma-separated: claude,copilot,cursor,codex
   -n, --dry-run       Show what would happen without writing
   -f, --force         Overwrite hand-edited generated files
+      --advise        After init, review the result and report what will not work
   --explain           Print the fidelity report: what each target loses
   -h, --help          Show this
   -v, --version       Show version

@@ -13794,8 +13794,8 @@ async function importCommand(args) {
 
 // packages/cli/src/commands/init.ts
 init_src();
-import { promises as fs9 } from "node:fs";
-import * as path10 from "node:path";
+import { promises as fs11 } from "node:fs";
+import * as path12 from "node:path";
 
 // packages/repo/src/profile.ts
 import { promises as fs6 } from "node:fs";
@@ -14543,773 +14543,6 @@ function buildMap(index, query) {
   const scored = scoreFiles(index, query);
   return renderMap(scored, query.budget, scored.length);
 }
-
-// packages/cli/src/prompt.ts
-import * as readline from "node:readline/promises";
-function interactive() {
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-}
-async function ask(question) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return (await rl.question(question)).trim();
-  } finally {
-    rl.close();
-  }
-}
-async function selectOne(title, choices, defaultValue) {
-  const index = Math.max(0, choices.findIndex((ch) => ch.value === defaultValue));
-  process.stdout.write(`
-${c.bold(title)}
-`);
-  choices.forEach((ch, i) => {
-    const marker = i === index ? c.green(">") : " ";
-    const note = ch.note ? c.dim(`  ${ch.note}`) : "";
-    process.stdout.write(`  ${marker} ${i + 1}) ${ch.label}${note}
-`);
-  });
-  const answer = await ask(c.dim(`  choose [${index + 1}]: `));
-  return interpretOne(answer, choices, index);
-}
-function interpretOne(answer, choices, defaultIndex) {
-  const fallback = choices[defaultIndex].value;
-  const trimmed = answer.trim();
-  if (!trimmed) return fallback;
-  const picked = Number(trimmed);
-  if (Number.isInteger(picked) && picked >= 1 && picked <= choices.length) {
-    return choices[picked - 1].value;
-  }
-  const byName = choices.find((ch) => ch.value === trimmed.toLowerCase());
-  return byName ? byName.value : fallback;
-}
-async function selectMany(title, choices, defaults) {
-  const chosen = new Set(defaults);
-  process.stdout.write(`
-${c.bold(title)}
-`);
-  choices.forEach((ch, i) => {
-    const mark = chosen.has(ch.value) ? c.green("x") : " ";
-    const note = ch.note ? c.dim(`  ${ch.note}`) : "";
-    process.stdout.write(`  [${mark}] ${i + 1}) ${ch.label}${note}
-`);
-  });
-  const preset = [...chosen].map((v) => choices.findIndex((ch) => ch.value === v) + 1).filter((n) => n > 0).join(",");
-  const answer = await ask(c.dim(`  choose, comma separated [${preset || "none"}]: `));
-  return interpretMany(answer, choices, [...chosen]);
-}
-function interpretMany(answer, choices, defaults) {
-  const trimmed = answer.trim();
-  if (!trimmed) return [...new Set(defaults)];
-  const picked = trimmed.split(/[,\s]+/).map((token) => {
-    const n = Number(token);
-    if (Number.isInteger(n) && n >= 1 && n <= choices.length) return choices[n - 1].value;
-    return choices.find((ch) => ch.value === token.toLowerCase())?.value;
-  }).filter((v) => Boolean(v));
-  return picked.length > 0 ? [...new Set(picked)] : [...new Set(defaults)];
-}
-
-// packages/cli/src/starter.ts
-function instructions(profile) {
-  return [
-    "# Project conventions",
-    "",
-    "Read this before making any change.",
-    "",
-    renderProfile(profile).trim(),
-    "",
-    "## Working agreement",
-    "",
-    "- Make the smallest change that satisfies the request. Resist adjacent improvements.",
-    "- Match the conventions of the surrounding code over any general style preference.",
-    "- If a requirement is ambiguous, state the assumption you made in the pull request",
-    "  description rather than guessing silently.",
-    ""
-  ].join("\n");
-}
-var REUSE_SKILL = `---
-name: find-before-writing
-description: Use before creating any new helper, hook, component, selector, type or utility \u2014 search the codebase for an existing implementation first.
-repoQuery:
-  terms: ["helper", "util", "hook", "component"]
-  budget: 1500
----
-
-# Find before writing
-
-The most common defect in generated code is a second implementation of something that
-already exists. It passes review because it is locally correct, and it costs the codebase
-permanently.
-
-Before adding any new shared unit \u2014 a helper, hook, component, selector, type, constant \u2014
-search for an existing one.
-
-1. Search by **name**: the thing you are about to write, and two or three synonyms.
-2. Search by **shape**: the signature or return type you need.
-3. Search the **directory** where such a thing would live if it existed.
-
-If you find something close but not exact, prefer extending it over duplicating it \u2014 unless
-extending would change behaviour for existing callers, in which case add the new variant
-beside it and say why in the pull request description.
-
-Only write something new once all three searches come back empty.
-`;
-var TEST_INTEGRITY_SKILL = `---
-name: test-integrity
-description: Use whenever a test fails, or when adding tests for a change. Governs what may and may not be changed to make a suite pass.
----
-
-# Test integrity
-
-A failing existing test is information. It is almost never noise.
-
-**When an existing test fails after your change**, the default conclusion is that your
-implementation is wrong. Fix the implementation.
-
-You may change an existing test only when the task explicitly changes the behaviour that
-test asserts. When that happens, say so in the pull request description and explain what
-behaviour changed and why.
-
-**Never**:
-- weaken an assertion to make it pass
-- delete or skip a test that your change broke
-- adjust fixtures or mocks so that new, possibly incorrect, code looks correct
-
-**When adding tests**, cover the branch you added, the boundary conditions around it, and
-the case where nothing should change. A test that only exercises the happy path documents
-the feature without defending it.
-`;
-var SCOPE_RULE = `---
-name: scope-discipline
-description: Keep changes within the boundaries of the task
-alwaysApply: true
-priority: 80
----
-
-Change only what the task requires.
-
-Before opening a pull request, review your own diff and remove anything that is not needed:
-unrelated refactors, renames, reformatting, dependency bumps, and configuration edits that
-nobody asked for.
-
-Configuration files \u2014 build config, TypeScript config, package manifests, CI workflows \u2014 are
-outside the scope of an ordinary task. If one genuinely must change, call it out explicitly
-rather than folding it in.
-
-A reviewer should be able to read the diff and see only the task.
-`;
-var REVIEWER_AGENT = `---
-name: change-reviewer
-description: Reviews a diff for scope creep, duplicated logic and weakened tests before a pull request is opened.
-archetype: any
----
-
-You review a change before it is proposed. You are not looking for style problems \u2014 a linter
-handles those. You are looking for the three things that get through review and cost the most
-later.
-
-**1. Scope.** Does every changed file belong to the task? Flag unrelated refactors, renames,
-reformatting, and configuration edits.
-
-**2. Duplication.** Does anything added here already exist elsewhere in the codebase? Search
-before concluding it does not.
-
-**3. Test integrity.** Were existing assertions weakened, deleted or skipped? Were fixtures
-adjusted to fit new behaviour? Does each new branch have a test that would fail if the branch
-were wrong?
-
-Report findings most-severe first. If there are none, say so plainly rather than manufacturing
-feedback.
-`;
-function starterFiles(profile) {
-  return [
-    { path: ".ctxmux/instructions.md", content: instructions(profile) },
-    { path: ".ctxmux/rules/scope-discipline.md", content: SCOPE_RULE },
-    { path: ".ctxmux/skills/find-before-writing/SKILL.md", content: REUSE_SKILL },
-    { path: ".ctxmux/skills/test-integrity/SKILL.md", content: TEST_INTEGRITY_SKILL },
-    { path: ".ctxmux/agents/change-reviewer.md", content: REVIEWER_AGENT },
-    {
-      path: ".ctxmux/mcp.json",
-      content: JSON.stringify(
-        {
-          servers: {
-            // The repository index, exposed as tools. Delegated agents cannot take an
-            // injected repo map at prompt-assembly time, so this is the only way they get
-            // repository knowledge. Read-only by construction.
-            "ctxmux-repo": {
-              transport: "stdio",
-              command: "npx",
-              args: ["-y", "@contextmux/mcp-repo"],
-              readOnly: true
-            }
-          }
-        },
-        null,
-        2
-      ) + "\n"
-    },
-    {
-      path: ".ctxmux/config.json",
-      content: JSON.stringify(
-        { targets: ["claude", "copilot", "cursor", "codex"], provenance: true },
-        null,
-        2
-      ) + "\n"
-    }
-  ];
-}
-
-// packages/cli/src/workflows.ts
-var WORKFLOW_MARKER = "ctxmux:workflow";
-var WORKFLOW_FEATURES = ["share-state"];
-function allowGlobs(profile) {
-  if (profile.isMonorepo && profile.workspaces.length > 0) {
-    const roots = new Set(profile.workspaces.map((w) => w.dir.split("/")[0]).filter(Boolean));
-    if (roots.size > 0) return [...roots].sort().map((r) => `${r}/**`);
-  }
-  return ["src/**", "test/**"];
-}
-function header(name) {
-  return [
-    `# ${name}`,
-    `#`,
-    `# Generated by contextmux (${WORKFLOW_MARKER}). Yours to edit \u2014 nothing regenerates it.`,
-    `#`,
-    `# This does nothing until you set the repository variable CTXMUX_ENABLED to true.`,
-    `# Settings -> Secrets and variables -> Actions -> Variables.`
-  ].join("\n");
-}
-function secretsFor(tracker) {
-  const secrets = ["CTXMUX_TOKEN"];
-  if (tracker === "jira") secrets.push("JIRA_URL", "JIRA_EMAIL", "JIRA_API_TOKEN");
-  return secrets;
-}
-function runWorkflow(ctx) {
-  const allow = allowGlobs(ctx.profile).join(",");
-  const jira = ctx.tracker === "jira";
-  return `${header("Drive tasks to pull requests, under gates")}
-
-name: contextmux run
-
-on:
-  workflow_dispatch:
-    inputs:
-      task:
-        description: '${jira ? "Ticket key" : "Task id"}. Leave empty to take the next eligible one.'
-        required: false
-  # Uncomment to pick work up on a schedule, once you trust it.
-  # schedule:
-  #   - cron: '0 */2 * * 1-5'
-
-concurrency:
-  # Serialise, so two runs cannot pick up the same task.
-  group: ctxmux-\${{ inputs.task || 'batch' }}
-  cancel-in-progress: false
-
-permissions:
-  # write, because run state is pushed to a branch of its own \u2014 see share-state below.
-  contents: write
-  issues: write
-  pull-requests: write
-
-jobs:
-  run:
-    # A kill switch that does not require editing this file to use.
-    if: vars.CTXMUX_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: contextmux/contextmux/packages/action@v0
-        with:
-          command: run
-          task: \${{ inputs.task }}
-          tracker: ${ctx.tracker}
-          # copilot delegates to GitHub's cloud agent, which opens its own pull request. A
-          # driven agent (claude) works in a worktree on this runner instead, so it needs
-          # \`--open-pr\` below \u2014 without it the runner is destroyed with the work still on it.
-          agent: copilot
-          # Detected from this repository's layout. Narrow it further if a task should not
-          # reach all of these.
-          allow: '${allow}'
-          max-rounds: '2'
-          # Only meaningful for a driven agent; copilot has already opened one by this point,
-          # and the flag is ignored because there is no local branch to push.
-          args: '--open-pr'
-          # Publishes what this run recorded, so the review workflow can find it. Without it,
-          # that workflow runs in a fresh checkout, finds nothing, and the feedback reaches
-          # nobody.
-          share-state: 'true'
-          github-token: \${{ secrets.CTXMUX_TOKEN }}${jira ? `
-          jira-url: \${{ secrets.JIRA_URL }}
-          jira-email: \${{ secrets.JIRA_EMAIL }}
-          jira-token: \${{ secrets.JIRA_API_TOKEN }}` : ""}
-`;
-}
-function reviewWorkflow(ctx) {
-  return `${header("Feed review feedback back to the agent")}
-#
-# Separate from the run workflow on purpose: picking up work and reacting to a review are
-# different triggers with different permissions, and combining them gives the review path
-# write access it does not need.
-
-name: contextmux review
-
-on:
-  pull_request_review:
-    types: [submitted]
-  issue_comment:
-    types: [created]
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-
-jobs:
-  review:
-    if: vars.CTXMUX_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: contextmux/contextmux/packages/action@v0
-        with:
-          command: event
-          tracker: ${ctx.tracker}
-          # Fetches the state the run workflow published. This is the whole reason this
-          # workflow can find the run it is meant to be advancing.
-          share-state: 'true'
-          github-token: \${{ secrets.CTXMUX_TOKEN }}
-`;
-}
-function workflowFiles(ctx) {
-  if (!ctx.hasRemote) return [];
-  return [
-    { path: ".github/workflows/ctxmux-run.yml", content: runWorkflow(ctx) },
-    { path: ".github/workflows/ctxmux-review.yml", content: reviewWorkflow(ctx) }
-  ];
-}
-function remainingSetup(ctx) {
-  const todo = secretsFor(ctx.tracker).map((s) => `${s} is not set as a repository secret`);
-  todo.push("the Copilot coding agent is not enabled on this repository");
-  todo.push("CTXMUX_ENABLED is unset, so nothing runs \u2014 set it to 'true' when you are ready");
-  return todo;
-}
-
-// packages/cli/src/commands/init.ts
-import { spawn } from "node:child_process";
-var GITIGNORE_STANZA = [
-  "# contextmux \u2014 run state and the index cache are local, not shared",
-  ".ctxmux/state/",
-  ".ctxmux/cache/"
-];
-async function ensureGitignore(root) {
-  const file = path10.join(root, ".gitignore");
-  const existing = await fs9.readFile(file, "utf8").catch(() => "");
-  if (existing.includes(".ctxmux/state/")) return false;
-  const body = existing.trimEnd();
-  await writeFileAtomic(file, `${body ? `${body}
-
-` : ""}${GITIGNORE_STANZA.join("\n")}
-`);
-  return true;
-}
-function detectTracker() {
-  if (process.env["JIRA_URL"]?.trim()) return "jira";
-  if (process.env["GITHUB_REPOSITORY"]?.trim() || process.env["CTXMUX_REPO"]?.trim()) return "github";
-  return "file";
-}
-function hasGitRemote(root) {
-  return new Promise((resolve17) => {
-    const child = spawn("git", ["remote"], { cwd: root, windowsHide: true });
-    let out = "";
-    child.stdout.on("data", (d) => out += d);
-    child.on("error", () => resolve17(false));
-    child.on("close", () => resolve17(out.trim().length > 0));
-  });
-}
-async function initCommand(args) {
-  const root = flagString(args, "root") ?? process.cwd();
-  const force = flagBool(args, "force", "f");
-  const dir = path10.join(root, ".ctxmux");
-  const already = await fs9.access(dir).then(() => true).catch(() => false);
-  if (already && !force) {
-    info(".ctxmux/ is already set up \u2014 leaving it alone.");
-    info("    " + c.dim("`ctxmux sync` compiles what is there. --force adds any starter files that are missing."));
-    return 0;
-  }
-  const profile = await detectProfile(root);
-  heading("Detected");
-  bullet(`package manager: ${profile.packageManager}${profile.packageManagerVersion ? "@" + profile.packageManagerVersion : ""}`);
-  if (profile.nodeVersion) bullet(`node: ${profile.nodeVersion}`);
-  if (profile.languages.length) bullet(`languages: ${profile.languages.join(", ")}`);
-  if (profile.frameworks.length) bullet(`stack: ${profile.frameworks.join(", ")}`);
-  if (profile.isMonorepo) bullet(`monorepo: ${profile.workspaces.length} workspace(s)`);
-  if (profile.qualityGate.length) bullet(`quality gate: ${profile.qualityGate.join(" && ")}`);
-  for (const note of profile.notes) {
-    info("");
-    warn(note);
-  }
-  const imported = already ? null : await importContext(root).catch(() => null);
-  const foundExisting = (imported?.provenance.length ?? 0) > 0;
-  const written = [];
-  if (foundExisting && imported) {
-    for (const file of imported.files) {
-      await writeFileAtomic(path10.join(root, file.path), file.content);
-      written.push(file.path);
-    }
-    heading("Imported");
-    for (const p of imported.provenance.slice(0, 8)) bullet(`${p.from} -> ${p.to}`);
-    if (imported.provenance.length > 8) {
-      info(c.dim(`    ...and ${imported.provenance.length - 8} more`));
-    }
-  }
-  for (const file of foundExisting ? [] : starterFiles(profile)) {
-    const abs = path10.join(root, file.path);
-    const exists3 = await fs9.access(abs).then(() => true).catch(() => false);
-    if (exists3) continue;
-    await writeFileAtomic(abs, file.content);
-    written.push(file.path);
-  }
-  const detected = imported ? detectTargets(imported.provenance) : [];
-  const askable = interactive() && !flagBool(args, "yes", "y");
-  let targets = detected.length > 0 ? detected : ["claude", "copilot", "cursor", "codex"];
-  let agent = "claude";
-  let tracker = detectTracker();
-  if (askable) {
-    if (detected.length === 0) {
-      targets = await selectMany(
-        "Which agents should get your rules?",
-        [
-          { value: "claude", label: "Claude Code", note: "CLAUDE.md" },
-          { value: "copilot", label: "GitHub Copilot", note: ".github/copilot-instructions.md" },
-          { value: "cursor", label: "Cursor", note: ".cursor/rules/" },
-          { value: "codex", label: "Codex", note: "AGENTS.md" }
-        ],
-        targets
-      );
-    }
-    agent = await selectOne(
-      "Which agent should run tasks?",
-      [
-        { value: "claude", label: "Claude Code", note: "runs here, needs ANTHROPIC_API_KEY" },
-        { value: "copilot", label: "GitHub Copilot", note: "runs in GitHub, opens its own PR" },
-        { value: "codex", label: "Codex", note: "runs here" },
-        { value: "cursor", label: "Cursor", note: "runs here" }
-      ],
-      targets.includes("copilot") && !targets.includes("claude") ? "copilot" : "claude"
-    );
-    tracker = await selectOne(
-      "Where do tasks come from?",
-      [
-        { value: "file", label: "Markdown files in the repo", note: ".ctxmux/tasks/" },
-        { value: "github", label: "GitHub issues", note: "needs gh auth or GITHUB_TOKEN" },
-        { value: "jira", label: "Jira", note: "needs JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN" }
-      ],
-      tracker
-    );
-  }
-  await writeFileAtomic(
-    path10.join(root, ".ctxmux", "config.json"),
-    JSON.stringify({ targets, agent, tracker }, null, 2) + "\n"
-  );
-  if (!written.includes(".ctxmux/config.json")) written.push(".ctxmux/config.json");
-  const ignored = await ensureGitignore(root);
-  const ctx = {
-    profile,
-    tracker,
-    hasRemote: await hasGitRemote(root)
-  };
-  const workflows = [];
-  if (!flagBool(args, "no-workflows")) {
-    for (const file of workflowFiles(ctx)) {
-      const abs = path10.join(root, file.path);
-      if (await fs9.access(abs).then(() => true, () => false)) continue;
-      await writeFileAtomic(abs, file.content);
-      workflows.push(file.path);
-    }
-  }
-  const report2 = await sync({ root, targets });
-  const generated = report2.records.filter((r) => r.status === "created" || r.status === "updated");
-  heading("Created");
-  for (const p of written) bullet(p);
-  for (const p of workflows) bullet(p);
-  if (ignored) bullet(`.gitignore ${c.dim("(added .ctxmux/state/ and .ctxmux/cache/)")}`);
-  if (generated.length > 0) {
-    heading(`Compiled to ${targets.join(", ")}`);
-    for (const r of generated.slice(0, 10)) bullet(r.path);
-    if (generated.length > 10) info(c.dim(`    ...and ${generated.length - 10} more`));
-  }
-  info("");
-  success(
-    `${written.length + workflows.length} file(s) written, ${generated.length} compiled. Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`
-  );
-  if (report2.records.some((r) => r.status === "drift")) {
-    info("");
-    warn("Some generated files were edited by hand and were left alone.");
-    info("    " + c.dim("Move those edits into .ctxmux/ so they survive, or re-run sync with --force."));
-  }
-  if (workflows.length > 0) {
-    info("");
-    warn("Before the workflow can run:");
-    for (const item of remainingSetup(ctx)) bullet(item);
-  }
-  info("");
-  info("Next:");
-  info("  " + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim("   see what it would do, for free"));
-  info("  " + c.bold("ctxmux doctor") + c.dim("                              check for anything that will fail silently"));
-  return 0;
-}
-
-// packages/cli/src/commands/doctor.ts
-init_src();
-import { promises as fs10 } from "node:fs";
-import * as path11 from "node:path";
-async function exists2(p) {
-  try {
-    await fs10.access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function doctorCommand(args) {
-  const root = flagString(args, "root") ?? process.cwd();
-  const checks = [];
-  let ctx;
-  try {
-    ctx = await loadContext({ root });
-    const m = ctx.model;
-    const total = m.rules.length + m.skills.length + m.agents.length + m.commands.length;
-    checks.push({
-      name: "canonical source",
-      status: "pass",
-      detail: `${total} node(s): ${m.rules.length} rules, ${m.skills.length} skills, ${m.agents.length} agents, ${m.commands.length} commands`
-    });
-    if (total === 0 && !m.instructions) {
-      checks.push({
-        name: "content",
-        status: "warn",
-        detail: ".ctxmux/ exists but is empty",
-        hint: "Run `ctxmux import` to pull in existing agent config, or `ctxmux init` for a starter pack."
-      });
-    }
-  } catch (err) {
-    checks.push({
-      name: "canonical source",
-      status: "fail",
-      detail: err.message,
-      hint: "Run `ctxmux import` or `ctxmux init` first."
-    });
-  }
-  if (ctx) {
-    try {
-      const report2 = await sync({ root, dryRun: true });
-      const drifted = report2.records.filter((r) => r.status === "drift");
-      const stale = report2.records.filter((r) => r.status !== "unchanged" && r.status !== "drift");
-      if (drifted.length > 0) {
-        checks.push({
-          name: "generated files",
-          status: "fail",
-          detail: `${drifted.length} hand-edited: ${drifted.map((d) => d.path).join(", ")}`,
-          hint: "Those edits will be lost on the next sync. Move them into .ctxmux/."
-        });
-      } else if (stale.length > 0) {
-        checks.push({
-          name: "generated files",
-          status: "warn",
-          detail: `${stale.length} out of date`,
-          hint: "Run `ctxmux sync`."
-        });
-      } else {
-        checks.push({ name: "generated files", status: "pass", detail: "all in sync" });
-      }
-    } catch (err) {
-      checks.push({ name: "generated files", status: "fail", detail: err.message });
-    }
-  }
-  const profile = await detectProfile(root);
-  if (profile.packageManager === "unknown") {
-    checks.push({
-      name: "package manager",
-      status: "warn",
-      detail: "could not be determined",
-      hint: "Add a `packageManager` field to package.json so agents install with the right tool."
-    });
-  } else {
-    checks.push({
-      name: "package manager",
-      status: "pass",
-      detail: profile.packageManagerVersion ? `${profile.packageManager}@${profile.packageManagerVersion}` : profile.packageManager
-    });
-  }
-  if (profile.qualityGate.length === 0) {
-    checks.push({
-      name: "quality gate",
-      status: "warn",
-      detail: "no test/lint/typecheck scripts found",
-      hint: "Agents have no way to verify their own work without these."
-    });
-  } else {
-    checks.push({
-      name: "quality gate",
-      status: "pass",
-      detail: profile.qualityGate.join(" && ")
-    });
-  }
-  for (const note of profile.notes) {
-    checks.push({ name: "toolchain", status: "warn", detail: note });
-  }
-  if (ctx && ctx.model.mcp.length > 0) {
-    const writable = ctx.model.mcp.filter((s) => !s.readOnly);
-    if (writable.length > 0) {
-      checks.push({
-        name: "mcp safety",
-        status: "warn",
-        detail: `${writable.length} server(s) are not read-only: ${writable.map((s) => s.name).join(", ")}`,
-        hint: "An agent acting on untrusted issue or ticket text should not hold write-capable tools."
-      });
-    } else {
-      checks.push({
-        name: "mcp safety",
-        status: "pass",
-        detail: `${ctx.model.mcp.length} server(s), all read-only`
-      });
-    }
-    const withLiterals = ctx.model.mcp.map((s) => ({ name: s.name, keys: literalEnvKeys(s.env) })).filter((s) => s.keys.length > 0);
-    if (withLiterals.length > 0) {
-      checks.push({
-        name: "mcp secrets",
-        status: "fail",
-        detail: withLiterals.map((s) => `${s.name}: ${s.keys.join(", ")}`).join("; "),
-        hint: 'Those values are copied into every generated MCP config. Use "${VAR}" and export the variable instead.'
-      });
-    } else {
-      checks.push({ name: "mcp secrets", status: "pass", detail: "no literal values declared" });
-    }
-    for (const server of ctx.model.mcp) {
-      if (server.transport !== "stdio" || !server.command) continue;
-      const looksLocal = server.command.startsWith(".") || server.command.startsWith("/");
-      if (looksLocal && !await exists2(path11.resolve(root, server.command))) {
-        checks.push({
-          name: `mcp: ${server.name}`,
-          status: "fail",
-          detail: `command not found: ${server.command}`
-        });
-      }
-    }
-  }
-  const workflowDir = path11.join(root, ".github", "workflows");
-  const workflowNames = await fs10.readdir(workflowDir).catch(() => []);
-  for (const name of workflowNames.filter((n) => /\.ya?ml$/.test(n))) {
-    const body = await fs10.readFile(path11.join(workflowDir, name), "utf8").catch(() => "");
-    if (!body.includes(WORKFLOW_MARKER)) continue;
-    const missing = WORKFLOW_FEATURES.filter((feature) => !body.includes(feature));
-    if (missing.length === 0) {
-      checks.push({ name: `workflow: ${name}`, status: "pass", detail: "up to date" });
-      continue;
-    }
-    checks.push({
-      name: `workflow: ${name}`,
-      status: "warn",
-      detail: `predates ${missing.join(", ")}`,
-      hint: missing.includes("share-state") ? "Without share-state the review workflow cannot find the run it is meant to advance, and says nothing. Add it, or re-scaffold into a scratch directory and compare." : "Compare against a freshly scaffolded workflow."
-    });
-  }
-  if (ctx) {
-    for (const target of ctx.config.targets) {
-      const compiler = COMPILERS[target];
-      const result = compiler.compile(ctx);
-      const missing = [];
-      for (const f of result.files) {
-        if (!await exists2(path11.resolve(root, f.path))) missing.push(f.path);
-      }
-      checks.push({
-        name: compiler.displayName,
-        status: missing.length === 0 ? "pass" : "warn",
-        detail: missing.length === 0 ? `${result.files.length} artefact(s) present` : `${missing.length} missing: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`,
-        ...missing.length > 0 ? { hint: "Run `ctxmux sync`." } : {}
-      });
-    }
-  }
-  heading("Diagnostics");
-  for (const check2 of checks) {
-    const line = `${check2.name.padEnd(22)} ${check2.detail}`;
-    if (check2.status === "pass") success(line);
-    else if (check2.status === "warn") warn(line);
-    else error(line);
-    if (check2.hint) info("      " + c.dim(check2.hint));
-  }
-  const failed = checks.filter((c2) => c2.status === "fail").length;
-  const warned = checks.filter((c2) => c2.status === "warn").length;
-  info("");
-  if (failed > 0) {
-    error(`${failed} failure(s), ${warned} warning(s).`);
-    return 1;
-  }
-  if (warned > 0) {
-    warn(`${warned} warning(s), no failures.`);
-    return 0;
-  }
-  success("All checks passed.");
-  return 0;
-}
-
-// packages/cli/src/commands/map.ts
-async function mapCommand(args) {
-  const root = flagString(args, "root") ?? process.cwd();
-  const budget = flagNumber(args, "budget", { default: 4e3, min: 100 });
-  const symbols = flagString(args, "symbols")?.split(",").map((s) => s.trim()).filter(Boolean);
-  const paths = flagString(args, "paths")?.split(",").map((s) => s.trim()).filter(Boolean);
-  const noCache = flagBool(args, "no-cache");
-  const showProfile = flagBool(args, "profile");
-  const text = args.positionals.join(" ");
-  if (!Number.isFinite(budget) || budget <= 0) {
-    warn("--budget must be a positive number of tokens.");
-    return 1;
-  }
-  if (showProfile) {
-    const profile = await detectProfile(root);
-    info(renderProfile(profile));
-    return 0;
-  }
-  if (!text && !symbols && !paths) {
-    warn("Nothing to search for.");
-    info("");
-    info('  ctxmux map "add a date formatting helper"');
-    info('  ctxmux map --symbols "use*,*Selector" --budget 2000');
-    info("  ctxmux map --profile");
-    return 1;
-  }
-  const started = Date.now();
-  const index = await buildIndex(root, { noCache });
-  const indexMs = Date.now() - started;
-  const result = buildMap(index, {
-    ...text ? { text } : {},
-    ...symbols ? { symbols } : {},
-    ...paths ? { paths } : {},
-    budget
-  });
-  info(result.text);
-  heading("Index");
-  bullet(`${index.files.length} file(s) indexed, ${index.skipped} skipped, ${indexMs}ms`);
-  if (index.truncated) {
-    warn(`The index stopped at the file ceiling, so this map covers only part of the repository.`);
-    info("    " + c.dim("Raise it with --max-files, or narrow the map with --paths."));
-  }
-  bullet(`${result.totalCandidates} candidate(s) matched, ${result.files.length} rendered, ${result.omitted} omitted`);
-  bullet(`~${result.estimatedTokens} tokens of ${budget} budget`);
-  if (index.git.commitCounts.size === 0) {
-    info("    " + c.dim("No git history available \u2014 recency and co-change ranking are inactive."));
-  }
-  return 0;
-}
-
-// packages/cli/src/commands/run.ts
-import { promises as fs15 } from "node:fs";
-import * as path17 from "node:path";
 
 // packages/core/src/task.ts
 var CRITERIA_SECTION = /^(?:acceptance criteria|acceptance|requirements?|done when|definition of done|expected behaviours?|expected behaviors?|expected results?|expected outcomes?|expected)\b/;
@@ -16080,18 +15313,18 @@ function noSpeculativeAbstraction(opts = {}) {
 }
 
 // packages/core/src/fsx.ts
-import { promises as fs11 } from "node:fs";
-import * as path12 from "node:path";
+import { promises as fs9 } from "node:fs";
+import * as path10 from "node:path";
 var sequence2 = 0;
 async function writeFileAtomic2(file, content) {
-  const dir = path12.dirname(file);
-  await fs11.mkdir(dir, { recursive: true });
-  const tmp = path12.join(dir, `.${path12.basename(file)}.ctxmux-${process.pid}-${sequence2++}.tmp`);
+  const dir = path10.dirname(file);
+  await fs9.mkdir(dir, { recursive: true });
+  const tmp = path10.join(dir, `.${path10.basename(file)}.ctxmux-${process.pid}-${sequence2++}.tmp`);
   try {
-    await fs11.writeFile(tmp, content, "utf8");
-    await fs11.rename(tmp, file);
+    await fs9.writeFile(tmp, content, "utf8");
+    await fs9.rename(tmp, file);
   } catch (err) {
-    await fs11.rm(tmp, { force: true }).catch(() => {
+    await fs9.rm(tmp, { force: true }).catch(() => {
     });
     throw err;
   }
@@ -16100,8 +15333,8 @@ async function writeFileAtomic2(file, content) {
 // packages/core/src/store.ts
 import { randomUUID } from "node:crypto";
 import { createHash as createHash3 } from "node:crypto";
-import { promises as fs12 } from "node:fs";
-import * as path13 from "node:path";
+import { promises as fs10 } from "node:fs";
+import * as path11 from "node:path";
 var MemoryStore = class {
   runs = /* @__PURE__ */ new Map();
   applied = /* @__PURE__ */ new Set();
@@ -16153,11 +15386,11 @@ var FileStore = class {
   }
   dir;
   runPath(runId) {
-    return path13.join(this.dir, "runs", `${encodeURIComponent(runId)}.json`);
+    return path11.join(this.dir, "runs", `${encodeURIComponent(runId)}.json`);
   }
   /** Legacy single-file record, still read so an existing installation is not re-applied. */
   legacyAppliedPath() {
-    return path13.join(this.dir, "applied.json");
+    return path11.join(this.dir, "applied.json");
   }
   /**
    * One marker file per key.
@@ -16167,14 +15400,14 @@ var FileStore = class {
    */
   appliedMarkerPath(key) {
     const digest2 = createHash3("sha256").update(key).digest("hex").slice(0, 32);
-    return path13.join(this.dir, "applied", `${digest2}.key`);
+    return path11.join(this.dir, "applied", `${digest2}.key`);
   }
   leasePath(runId) {
-    return path13.join(this.dir, "leases", `${encodeURIComponent(runId)}.lease`);
+    return path11.join(this.dir, "leases", `${encodeURIComponent(runId)}.lease`);
   }
   async load(runId) {
     try {
-      return JSON.parse(await fs12.readFile(this.runPath(runId), "utf8"));
+      return JSON.parse(await fs10.readFile(this.runPath(runId), "utf8"));
     } catch {
       return null;
     }
@@ -16184,7 +15417,7 @@ var FileStore = class {
   }
   async list() {
     try {
-      const files = await fs12.readdir(path13.join(this.dir, "runs"));
+      const files = await fs10.readdir(path11.join(this.dir, "runs"));
       return files.filter((f) => f.endsWith(".json")).map((f) => decodeURIComponent(f.replace(/\.json$/, "")));
     } catch {
       return [];
@@ -16192,7 +15425,7 @@ var FileStore = class {
   }
   async legacyApplied() {
     try {
-      return new Set(JSON.parse(await fs12.readFile(this.legacyAppliedPath(), "utf8")));
+      return new Set(JSON.parse(await fs10.readFile(this.legacyAppliedPath(), "utf8")));
     } catch {
       return /* @__PURE__ */ new Set();
     }
@@ -16210,20 +15443,20 @@ var FileStore = class {
    * effect must not let a retry perform it twice.
    */
   async forgetApplied(runId) {
-    const dir = path13.join(this.dir, "applied");
+    const dir = path11.join(this.dir, "applied");
     let names;
     try {
-      names = await fs12.readdir(dir);
+      names = await fs10.readdir(dir);
     } catch {
       return 0;
     }
     const prefix = `${runId}:`;
     let removed = 0;
     for (const name of names) {
-      const file = path13.join(dir, name);
-      const contents = await fs12.readFile(file, "utf8").catch(() => "");
+      const file = path11.join(dir, name);
+      const contents = await fs10.readFile(file, "utf8").catch(() => "");
       if (contents.startsWith(prefix)) {
-        await fs12.rm(file, { force: true }).catch(() => {
+        await fs10.rm(file, { force: true }).catch(() => {
         });
         removed += 1;
       }
@@ -16232,9 +15465,9 @@ var FileStore = class {
   }
   async applyOnce(key, fn) {
     const marker = this.appliedMarkerPath(key);
-    await fs12.mkdir(path13.dirname(marker), { recursive: true });
+    await fs10.mkdir(path11.dirname(marker), { recursive: true });
     try {
-      await fs12.writeFile(marker, key, { flag: "wx" });
+      await fs10.writeFile(marker, key, { flag: "wx" });
     } catch (err) {
       if (err.code !== "EEXIST") throw err;
       return false;
@@ -16259,24 +15492,24 @@ var FileStore = class {
    */
   async acquireLease(runId, ttlMs) {
     const p = this.leasePath(runId);
-    await fs12.mkdir(path13.dirname(p), { recursive: true });
+    await fs10.mkdir(path11.dirname(p), { recursive: true });
     const owner = `${process.pid}-${randomUUID()}`;
     const record = () => JSON.stringify({ owner, expires: Date.now() + ttlMs });
     const release = async () => {
       const current = await readLease(p);
-      if (current?.owner === owner) await fs12.rm(p, { force: true });
+      if (current?.owner === owner) await fs10.rm(p, { force: true });
     };
     const notHeld = { held: false, release: async () => {
     } };
     try {
-      await fs12.writeFile(p, record(), { flag: "wx" });
+      await fs10.writeFile(p, record(), { flag: "wx" });
       return { held: true, release };
     } catch (err) {
       if (err.code !== "EEXIST") throw err;
     }
     const existing = await readLease(p);
     if (!existing || existing.expires >= Date.now()) return notHeld;
-    await fs12.writeFile(p, record(), "utf8");
+    await fs10.writeFile(p, record(), "utf8");
     const settled = await readLease(p);
     return settled?.owner === owner ? { held: true, release } : notHeld;
   }
@@ -16284,7 +15517,7 @@ var FileStore = class {
 async function readLease(p) {
   let raw;
   try {
-    raw = await fs12.readFile(p, "utf8");
+    raw = await fs10.readFile(p, "utf8");
   } catch {
     return null;
   }
@@ -16896,6 +16129,1141 @@ function fingerprint(feedback) {
   return createHash4("sha256").update(text).digest("base64url").slice(0, 22);
 }
 
+// packages/council/src/static.ts
+var PATH_LIKE = /(?:^|[\s`'"(])((?:[\w.-]+\/){1,}[\w.-]+\.[a-z]{1,5})(?=[\s`'".,;:)]|$)/gi;
+var POSITIVE = /\b(?:always|must|should|prefer|use)\b/i;
+var NEGATIVE = /\b(?:never|must not|should not|do not|don't|avoid)\b/i;
+function normalise(body) {
+  return body.replace(/\s+/g, " ").trim().toLowerCase();
+}
+function reachedTargets(node, configured) {
+  if (!node.targets || node.targets.length === 0) return [...configured];
+  return configured.filter((t) => node.targets?.includes(t));
+}
+function checkEmptyBody(where, body) {
+  if (body.trim().length > 0) return [];
+  return [
+    {
+      check: "empty-body",
+      severity: "error",
+      where,
+      message: "The body is empty, so this compiles to nothing.",
+      fix: "Write the guidance, or delete the file. An empty node is invisible in every target."
+    }
+  ];
+}
+function checkNeverCompiles(where, node, facts) {
+  if (facts.targets.length === 0) return [];
+  if (reachedTargets(node, facts.targets).length > 0) return [];
+  const asked = node.targets?.join(", ") ?? "none";
+  return [
+    {
+      check: "never-compiles",
+      severity: "error",
+      where,
+      message: `Restricted to ${asked}, none of which this repository compiles.`,
+      fix: `Add one of ${asked} to targets in .ctxmux/config.json, or widen this node's targets. As it stands it reaches nothing.`
+    }
+  ];
+}
+function checkGlobsIgnored(where, rule) {
+  if (!rule.alwaysApply || rule.globs.length === 0) return [];
+  return [
+    {
+      check: "globs-ignored",
+      severity: "warning",
+      where,
+      message: "alwaysApply is set, so the globs are dead configuration.",
+      fix: "Drop alwaysApply to scope this to the globs, or delete the globs to say plainly that it is repo-wide."
+    }
+  ];
+}
+function checkGlobsMatchNothing(where, globs, facts) {
+  if (globs.length === 0 || facts.files.length === 0) return [];
+  const dead = globs.filter((g) => {
+    const re = globToRegExp(g);
+    return !facts.files.some((f) => re.test(f));
+  });
+  if (dead.length === 0) return [];
+  const all = dead.length === globs.length;
+  return [
+    {
+      check: "globs-match-nothing",
+      severity: "warning",
+      where,
+      message: `${all ? "No glob" : `${dead.length} of ${globs.length} globs`} matches any file: ${dead.join(", ")}.`,
+      fix: all ? "Nothing activates this. Fix the pattern, or delete the node if what it described is gone." : `Remove the dead patterns, or correct them: ${dead.join(", ")}.`
+    }
+  ];
+}
+function checkDanglingPaths(where, body, facts) {
+  if (facts.files.length === 0) return [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const m of body.matchAll(PATH_LIKE)) {
+    const p = m[1];
+    if (!p || facts.files.includes(p) || looksLikeDomain(p)) continue;
+    seen.add(p);
+  }
+  if (seen.size === 0) return [];
+  const all = [...seen];
+  const paths = all.slice(0, 5);
+  const rest = all.length - paths.length;
+  return [
+    {
+      check: "dangling-path",
+      severity: "warning",
+      where,
+      message: `Refers to ${all.length === 1 ? "a path that no longer exists" : `${all.length} paths that no longer exist`}: ${paths.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}.`,
+      fix: "Point at where the code moved, or drop the reference. An agent asked to look there will find nothing and guess."
+    }
+  ];
+}
+function looksLikeDomain(p) {
+  const first = p.slice(0, p.indexOf("/"));
+  return first.includes(".") && !first.startsWith(".");
+}
+function checkWeakActivation(where, skill) {
+  const d = skill.description.trim();
+  if (d.length >= 60 && ACTIVATION_CUE.test(d)) return [];
+  return [
+    {
+      check: "weak-activation",
+      severity: "suggestion",
+      where,
+      message: "The description is what decides whether this skill ever activates, and this one is thin.",
+      fix: "Say when to use it, in the words someone would actually type. Descriptions that only name the topic do not fire."
+    }
+  ];
+}
+var ACTIVATION_CUE = /\b(?:when|use|if|trigger(?:s|ed)?|says?|asks?|invoke[sd]?)\b|\/[a-z][\w-]+|["'\u201c][^"'\u201d]{4,}["'\u201d]/i;
+function checkDuplicates(nodes) {
+  const byBody = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    const key = normalise(n.body);
+    if (key.length < 40) continue;
+    const seen = byBody.get(key);
+    if (seen) seen.push(n.where);
+    else byBody.set(key, [n.where]);
+  }
+  const out = [];
+  for (const group of byBody.values()) {
+    if (group.length < 2) continue;
+    const [first, ...rest] = [...group].sort();
+    const shown = rest.slice(0, 4);
+    const more = rest.length - shown.length;
+    out.push({
+      check: "duplicate-body",
+      severity: "warning",
+      where: first,
+      message: `Identical to ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}.`,
+      fix: "Keep one. Two copies drift, and then agents get told two different things by files that used to agree."
+    });
+  }
+  return out;
+}
+function checkContradictions(rules) {
+  const against = /* @__PURE__ */ new Map();
+  for (let i = 0; i < rules.length; i++) {
+    for (let j = i + 1; j < rules.length; j++) {
+      const a = rules[i];
+      const b = rules[j];
+      if (!a || !b) continue;
+      if (!scopesOverlap(a.rule, b.rule)) continue;
+      const shared = sharedSubject(a.rule.body, b.rule.body);
+      if (!shared) continue;
+      const pa = polarityAbout(a.rule.body, shared);
+      const pb = polarityAbout(b.rule.body, shared);
+      if (!pa || !pb || pa === pb) continue;
+      const entry = against.get(a.where);
+      if (entry) entry.with.push(b.where);
+      else against.set(a.where, { with: [b.where], subject: shared });
+    }
+  }
+  const out = [];
+  for (const [where, { with: others, subject }] of against) {
+    const shown = others.slice(0, 3);
+    const more = others.length - shown.length;
+    out.push({
+      check: "contradiction",
+      severity: "warning",
+      where,
+      message: `Says the opposite of ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""} about "${subject}", and their scopes overlap.`,
+      fix: "Decide which one is true and delete the other, or scope them so they cannot both apply."
+    });
+  }
+  return out;
+}
+function sentences(body) {
+  return body.split(/(?<=[.!?;])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
+}
+function polarityAbout(body, subject) {
+  const mentions = new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  for (const sentence2 of sentences(body)) {
+    if (!mentions.test(sentence2)) continue;
+    if (NEGATIVE.test(sentence2)) return "against";
+    if (POSITIVE.test(sentence2)) return "for";
+  }
+  return null;
+}
+function scopesOverlap(a, b) {
+  const aWide = a.alwaysApply || a.globs.length === 0;
+  const bWide = b.alwaysApply || b.globs.length === 0;
+  if (aWide || bWide) return true;
+  return a.globs.some((g) => b.globs.some((h) => globsOverlap(g, h)));
+}
+function sharedSubject(a, b) {
+  const shared = phrases(a);
+  for (const phrase of phrases(b)) if (shared.has(phrase)) return phrase;
+  return null;
+}
+function phrases(body) {
+  const words = body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? [];
+  const out = /* @__PURE__ */ new Set();
+  for (let i = 0; i + 1 < words.length; i++) {
+    const first = words[i];
+    const second = words[i + 1];
+    if (!first || !second) continue;
+    if (STOP.has(first) && STOP.has(second)) continue;
+    out.add(`${first} ${second}`);
+  }
+  return out;
+}
+var STOP = /* @__PURE__ */ new Set([
+  "about",
+  "after",
+  "again",
+  "against",
+  "because",
+  "before",
+  "being",
+  "between",
+  "could",
+  "every",
+  "first",
+  "other",
+  "should",
+  "their",
+  "there",
+  "these",
+  "thing",
+  "those",
+  "under",
+  "until",
+  "where",
+  "which",
+  "while",
+  "would",
+  "always",
+  "never",
+  "avoid",
+  "prefer"
+]);
+function inspect(model, facts) {
+  const out = [];
+  const bodies = [];
+  const rules = [];
+  for (const rule of model.rules) {
+    const where = `rules/${rule.name}`;
+    out.push(...checkEmptyBody(where, rule.body));
+    if (rule.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, rule.body, facts));
+      bodies.push({ where, body: rule.body });
+      rules.push({ where, rule });
+    }
+    out.push(...checkNeverCompiles(where, rule, facts));
+    out.push(...checkGlobsIgnored(where, rule));
+    out.push(...checkGlobsMatchNothing(where, rule.globs, facts));
+  }
+  for (const skill of model.skills) {
+    const where = `skills/${skill.name}`;
+    out.push(...checkEmptyBody(where, skill.body));
+    if (skill.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, skill.body, facts));
+      bodies.push({ where, body: skill.body });
+    }
+    out.push(...checkNeverCompiles(where, skill, facts));
+    out.push(...checkGlobsMatchNothing(where, skill.globs, facts));
+    out.push(...checkWeakActivation(where, skill));
+  }
+  for (const agent of model.agents) {
+    const where = `agents/${agent.name}`;
+    out.push(...checkEmptyBody(where, agent.body));
+    out.push(...checkNeverCompiles(where, agent, facts));
+    if (agent.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, agent.body, facts));
+      bodies.push({ where, body: agent.body });
+    }
+  }
+  for (const command of model.commands) {
+    const where = `commands/${command.name}`;
+    out.push(...checkEmptyBody(where, command.body));
+    out.push(...checkNeverCompiles(where, command, facts));
+    if (command.body.trim().length > 0) {
+      out.push(...checkDanglingPaths(where, command.body, facts));
+      bodies.push({ where, body: command.body });
+    }
+  }
+  if (model.instructions) {
+    out.push(...checkEmptyBody("instructions", model.instructions.body));
+    if (model.instructions.body.trim().length > 0) {
+      out.push(...checkDanglingPaths("instructions", model.instructions.body, facts));
+    }
+  }
+  out.push(...checkDuplicates(bodies));
+  out.push(...checkContradictions(rules));
+  const rank2 = { error: 0, warning: 1, suggestion: 2 };
+  return out.sort(
+    (x, y) => (rank2[x.severity] ?? 3) - (rank2[y.severity] ?? 3) || x.where.localeCompare(y.where) || x.check.localeCompare(y.check)
+  );
+}
+
+// packages/cli/src/commands/advise.ts
+init_src();
+var LABEL = {
+  error: "Does not work",
+  warning: "Probably not what you meant",
+  suggestion: "Worth a look"
+};
+async function advise(root) {
+  const loaded = await loadContext({ root });
+  const tracked = await listTrackedFiles(root);
+  return {
+    findings: inspect(loaded.model, { files: tracked ?? [], targets: loaded.config.targets }),
+    hadFileList: tracked !== null,
+    checked: countOf(loaded.model)
+  };
+}
+function renderAdvice(findings) {
+  for (const severity of ["error", "warning", "suggestion"]) {
+    const group = findings.filter((f) => f.severity === severity);
+    if (group.length === 0) continue;
+    heading(LABEL[severity]);
+    for (const f of group) {
+      bullet(`${c.dim(f.where)}  ${f.message}`);
+      info("    " + c.dim(f.fix));
+    }
+  }
+}
+async function adviseCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const json = flagBool(args, "json");
+  const { findings, hadFileList, checked } = await advise(root);
+  if (json) {
+    info(JSON.stringify({ findings, checked }, null, 2));
+    return 0;
+  }
+  if (findings.length === 0) {
+    success("Nothing to say. Every rule reaches a target, applies to something, and agrees with the others.");
+    if (!hadFileList) hintNoGit();
+    return 0;
+  }
+  renderAdvice(findings);
+  const errors = findings.filter((f) => f.severity === "error").length;
+  info("");
+  info(
+    errors > 0 ? `${findings.length} to look at, ${errors} of which will not work at all.` : `${findings.length} to look at. Nothing is broken.`
+  );
+  if (!hadFileList) hintNoGit();
+  return 0;
+}
+function hintNoGit() {
+  warn("Not a git repository, so dead globs and stale paths were not checked.");
+}
+function countOf(model) {
+  const parts = [
+    [model.rules.length, "rule"],
+    [model.skills.length, "skill"],
+    [model.agents.length, "agent"],
+    [model.commands.length, "command"]
+  ];
+  return parts.filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
+}
+
+// packages/cli/src/prompt.ts
+import * as readline from "node:readline/promises";
+function interactive() {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+async function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question(question)).trim();
+  } finally {
+    rl.close();
+  }
+}
+async function selectOne(title, choices, defaultValue) {
+  const index = Math.max(0, choices.findIndex((ch) => ch.value === defaultValue));
+  process.stdout.write(`
+${c.bold(title)}
+`);
+  choices.forEach((ch, i) => {
+    const marker = i === index ? c.green(">") : " ";
+    const note = ch.note ? c.dim(`  ${ch.note}`) : "";
+    process.stdout.write(`  ${marker} ${i + 1}) ${ch.label}${note}
+`);
+  });
+  const answer = await ask(c.dim(`  choose [${index + 1}]: `));
+  return interpretOne(answer, choices, index);
+}
+function interpretOne(answer, choices, defaultIndex) {
+  const fallback = choices[defaultIndex].value;
+  const trimmed = answer.trim();
+  if (!trimmed) return fallback;
+  const picked = Number(trimmed);
+  if (Number.isInteger(picked) && picked >= 1 && picked <= choices.length) {
+    return choices[picked - 1].value;
+  }
+  const byName = choices.find((ch) => ch.value === trimmed.toLowerCase());
+  return byName ? byName.value : fallback;
+}
+async function selectMany(title, choices, defaults) {
+  const chosen = new Set(defaults);
+  process.stdout.write(`
+${c.bold(title)}
+`);
+  choices.forEach((ch, i) => {
+    const mark = chosen.has(ch.value) ? c.green("x") : " ";
+    const note = ch.note ? c.dim(`  ${ch.note}`) : "";
+    process.stdout.write(`  [${mark}] ${i + 1}) ${ch.label}${note}
+`);
+  });
+  const preset = [...chosen].map((v) => choices.findIndex((ch) => ch.value === v) + 1).filter((n) => n > 0).join(",");
+  const answer = await ask(c.dim(`  choose, comma separated [${preset || "none"}]: `));
+  return interpretMany(answer, choices, [...chosen]);
+}
+function interpretMany(answer, choices, defaults) {
+  const trimmed = answer.trim();
+  if (!trimmed) return [...new Set(defaults)];
+  const picked = trimmed.split(/[,\s]+/).map((token) => {
+    const n = Number(token);
+    if (Number.isInteger(n) && n >= 1 && n <= choices.length) return choices[n - 1].value;
+    return choices.find((ch) => ch.value === token.toLowerCase())?.value;
+  }).filter((v) => Boolean(v));
+  return picked.length > 0 ? [...new Set(picked)] : [...new Set(defaults)];
+}
+
+// packages/cli/src/starter.ts
+function instructions(profile) {
+  return [
+    "# Project conventions",
+    "",
+    "Read this before making any change.",
+    "",
+    renderProfile(profile).trim(),
+    "",
+    "## Working agreement",
+    "",
+    "- Make the smallest change that satisfies the request. Resist adjacent improvements.",
+    "- Match the conventions of the surrounding code over any general style preference.",
+    "- If a requirement is ambiguous, state the assumption you made in the pull request",
+    "  description rather than guessing silently.",
+    ""
+  ].join("\n");
+}
+var REUSE_SKILL = `---
+name: find-before-writing
+description: Use before creating any new helper, hook, component, selector, type or utility \u2014 search the codebase for an existing implementation first.
+repoQuery:
+  terms: ["helper", "util", "hook", "component"]
+  budget: 1500
+---
+
+# Find before writing
+
+The most common defect in generated code is a second implementation of something that
+already exists. It passes review because it is locally correct, and it costs the codebase
+permanently.
+
+Before adding any new shared unit \u2014 a helper, hook, component, selector, type, constant \u2014
+search for an existing one.
+
+1. Search by **name**: the thing you are about to write, and two or three synonyms.
+2. Search by **shape**: the signature or return type you need.
+3. Search the **directory** where such a thing would live if it existed.
+
+If you find something close but not exact, prefer extending it over duplicating it \u2014 unless
+extending would change behaviour for existing callers, in which case add the new variant
+beside it and say why in the pull request description.
+
+Only write something new once all three searches come back empty.
+`;
+var TEST_INTEGRITY_SKILL = `---
+name: test-integrity
+description: Use whenever a test fails, or when adding tests for a change. Governs what may and may not be changed to make a suite pass.
+---
+
+# Test integrity
+
+A failing existing test is information. It is almost never noise.
+
+**When an existing test fails after your change**, the default conclusion is that your
+implementation is wrong. Fix the implementation.
+
+You may change an existing test only when the task explicitly changes the behaviour that
+test asserts. When that happens, say so in the pull request description and explain what
+behaviour changed and why.
+
+**Never**:
+- weaken an assertion to make it pass
+- delete or skip a test that your change broke
+- adjust fixtures or mocks so that new, possibly incorrect, code looks correct
+
+**When adding tests**, cover the branch you added, the boundary conditions around it, and
+the case where nothing should change. A test that only exercises the happy path documents
+the feature without defending it.
+`;
+var SCOPE_RULE = `---
+name: scope-discipline
+description: Keep changes within the boundaries of the task
+alwaysApply: true
+priority: 80
+---
+
+Change only what the task requires.
+
+Before opening a pull request, review your own diff and remove anything that is not needed:
+unrelated refactors, renames, reformatting, dependency bumps, and configuration edits that
+nobody asked for.
+
+Configuration files \u2014 build config, TypeScript config, package manifests, CI workflows \u2014 are
+outside the scope of an ordinary task. If one genuinely must change, call it out explicitly
+rather than folding it in.
+
+A reviewer should be able to read the diff and see only the task.
+`;
+var REVIEWER_AGENT = `---
+name: change-reviewer
+description: Reviews a diff for scope creep, duplicated logic and weakened tests before a pull request is opened.
+archetype: any
+---
+
+You review a change before it is proposed. You are not looking for style problems \u2014 a linter
+handles those. You are looking for the three things that get through review and cost the most
+later.
+
+**1. Scope.** Does every changed file belong to the task? Flag unrelated refactors, renames,
+reformatting, and configuration edits.
+
+**2. Duplication.** Does anything added here already exist elsewhere in the codebase? Search
+before concluding it does not.
+
+**3. Test integrity.** Were existing assertions weakened, deleted or skipped? Were fixtures
+adjusted to fit new behaviour? Does each new branch have a test that would fail if the branch
+were wrong?
+
+Report findings most-severe first. If there are none, say so plainly rather than manufacturing
+feedback.
+`;
+function starterFiles(profile) {
+  return [
+    { path: ".ctxmux/instructions.md", content: instructions(profile) },
+    { path: ".ctxmux/rules/scope-discipline.md", content: SCOPE_RULE },
+    { path: ".ctxmux/skills/find-before-writing/SKILL.md", content: REUSE_SKILL },
+    { path: ".ctxmux/skills/test-integrity/SKILL.md", content: TEST_INTEGRITY_SKILL },
+    { path: ".ctxmux/agents/change-reviewer.md", content: REVIEWER_AGENT },
+    {
+      path: ".ctxmux/mcp.json",
+      content: JSON.stringify(
+        {
+          servers: {
+            // The repository index, exposed as tools. Delegated agents cannot take an
+            // injected repo map at prompt-assembly time, so this is the only way they get
+            // repository knowledge. Read-only by construction.
+            "ctxmux-repo": {
+              transport: "stdio",
+              command: "npx",
+              args: ["-y", "@contextmux/mcp-repo"],
+              readOnly: true
+            }
+          }
+        },
+        null,
+        2
+      ) + "\n"
+    },
+    {
+      path: ".ctxmux/config.json",
+      content: JSON.stringify(
+        { targets: ["claude", "copilot", "cursor", "codex"], provenance: true },
+        null,
+        2
+      ) + "\n"
+    }
+  ];
+}
+
+// packages/cli/src/workflows.ts
+var WORKFLOW_MARKER = "ctxmux:workflow";
+var WORKFLOW_FEATURES = ["share-state"];
+function allowGlobs(profile) {
+  if (profile.isMonorepo && profile.workspaces.length > 0) {
+    const roots = new Set(profile.workspaces.map((w) => w.dir.split("/")[0]).filter(Boolean));
+    if (roots.size > 0) return [...roots].sort().map((r) => `${r}/**`);
+  }
+  return ["src/**", "test/**"];
+}
+function header(name) {
+  return [
+    `# ${name}`,
+    `#`,
+    `# Generated by contextmux (${WORKFLOW_MARKER}). Yours to edit \u2014 nothing regenerates it.`,
+    `#`,
+    `# This does nothing until you set the repository variable CTXMUX_ENABLED to true.`,
+    `# Settings -> Secrets and variables -> Actions -> Variables.`
+  ].join("\n");
+}
+function secretsFor(tracker) {
+  const secrets = ["CTXMUX_TOKEN"];
+  if (tracker === "jira") secrets.push("JIRA_URL", "JIRA_EMAIL", "JIRA_API_TOKEN");
+  return secrets;
+}
+function runWorkflow(ctx) {
+  const allow = allowGlobs(ctx.profile).join(",");
+  const jira = ctx.tracker === "jira";
+  return `${header("Drive tasks to pull requests, under gates")}
+
+name: contextmux run
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: '${jira ? "Ticket key" : "Task id"}. Leave empty to take the next eligible one.'
+        required: false
+  # Uncomment to pick work up on a schedule, once you trust it.
+  # schedule:
+  #   - cron: '0 */2 * * 1-5'
+
+concurrency:
+  # Serialise, so two runs cannot pick up the same task.
+  group: ctxmux-\${{ inputs.task || 'batch' }}
+  cancel-in-progress: false
+
+permissions:
+  # write, because run state is pushed to a branch of its own \u2014 see share-state below.
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    # A kill switch that does not require editing this file to use.
+    if: vars.CTXMUX_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: contextmux/contextmux/packages/action@v0
+        with:
+          command: run
+          task: \${{ inputs.task }}
+          tracker: ${ctx.tracker}
+          # copilot delegates to GitHub's cloud agent, which opens its own pull request. A
+          # driven agent (claude) works in a worktree on this runner instead, so it needs
+          # \`--open-pr\` below \u2014 without it the runner is destroyed with the work still on it.
+          agent: copilot
+          # Detected from this repository's layout. Narrow it further if a task should not
+          # reach all of these.
+          allow: '${allow}'
+          max-rounds: '2'
+          # Only meaningful for a driven agent; copilot has already opened one by this point,
+          # and the flag is ignored because there is no local branch to push.
+          args: '--open-pr'
+          # Publishes what this run recorded, so the review workflow can find it. Without it,
+          # that workflow runs in a fresh checkout, finds nothing, and the feedback reaches
+          # nobody.
+          share-state: 'true'
+          github-token: \${{ secrets.CTXMUX_TOKEN }}${jira ? `
+          jira-url: \${{ secrets.JIRA_URL }}
+          jira-email: \${{ secrets.JIRA_EMAIL }}
+          jira-token: \${{ secrets.JIRA_API_TOKEN }}` : ""}
+`;
+}
+function reviewWorkflow(ctx) {
+  return `${header("Feed review feedback back to the agent")}
+#
+# Separate from the run workflow on purpose: picking up work and reacting to a review are
+# different triggers with different permissions, and combining them gives the review path
+# write access it does not need.
+
+name: contextmux review
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  review:
+    if: vars.CTXMUX_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: contextmux/contextmux/packages/action@v0
+        with:
+          command: event
+          tracker: ${ctx.tracker}
+          # Fetches the state the run workflow published. This is the whole reason this
+          # workflow can find the run it is meant to be advancing.
+          share-state: 'true'
+          github-token: \${{ secrets.CTXMUX_TOKEN }}
+`;
+}
+function workflowFiles(ctx) {
+  if (!ctx.hasRemote) return [];
+  return [
+    { path: ".github/workflows/ctxmux-run.yml", content: runWorkflow(ctx) },
+    { path: ".github/workflows/ctxmux-review.yml", content: reviewWorkflow(ctx) }
+  ];
+}
+function remainingSetup(ctx) {
+  const todo = secretsFor(ctx.tracker).map((s) => `${s} is not set as a repository secret`);
+  todo.push("the Copilot coding agent is not enabled on this repository");
+  todo.push("CTXMUX_ENABLED is unset, so nothing runs \u2014 set it to 'true' when you are ready");
+  return todo;
+}
+
+// packages/cli/src/commands/init.ts
+import { spawn } from "node:child_process";
+var GITIGNORE_STANZA = [
+  "# contextmux \u2014 run state and the index cache are local, not shared",
+  ".ctxmux/state/",
+  ".ctxmux/cache/"
+];
+async function ensureGitignore(root) {
+  const file = path12.join(root, ".gitignore");
+  const existing = await fs11.readFile(file, "utf8").catch(() => "");
+  if (existing.includes(".ctxmux/state/")) return false;
+  const body = existing.trimEnd();
+  await writeFileAtomic(file, `${body ? `${body}
+
+` : ""}${GITIGNORE_STANZA.join("\n")}
+`);
+  return true;
+}
+function detectTracker() {
+  if (process.env["JIRA_URL"]?.trim()) return "jira";
+  if (process.env["GITHUB_REPOSITORY"]?.trim() || process.env["CTXMUX_REPO"]?.trim()) return "github";
+  return "file";
+}
+function hasGitRemote(root) {
+  return new Promise((resolve17) => {
+    const child = spawn("git", ["remote"], { cwd: root, windowsHide: true });
+    let out = "";
+    child.stdout.on("data", (d) => out += d);
+    child.on("error", () => resolve17(false));
+    child.on("close", () => resolve17(out.trim().length > 0));
+  });
+}
+async function reviewWhatIsThere(root, asked) {
+  const { findings, hadFileList } = await advise(root);
+  if (findings.length === 0) {
+    if (asked) {
+      info("");
+      success("Nothing to say about the rules themselves.");
+      if (!hadFileList) hintNoGit();
+    }
+    return;
+  }
+  renderAdvice(findings);
+  info("");
+  info(c.dim(`${findings.length} thing(s) to look at. \`ctxmux advise\` shows this again.`));
+  if (!hadFileList) hintNoGit();
+}
+async function initCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const force = flagBool(args, "force", "f");
+  const wantAdvice = flagBool(args, "advise");
+  const dir = path12.join(root, ".ctxmux");
+  const already = await fs11.access(dir).then(() => true).catch(() => false);
+  if (already && !force) {
+    info(".ctxmux/ is already set up \u2014 leaving it alone.");
+    info("    " + c.dim("`ctxmux sync` compiles what is there. --force adds any starter files that are missing."));
+    if (wantAdvice) await reviewWhatIsThere(root, true);
+    return 0;
+  }
+  const profile = await detectProfile(root);
+  heading("Detected");
+  bullet(`package manager: ${profile.packageManager}${profile.packageManagerVersion ? "@" + profile.packageManagerVersion : ""}`);
+  if (profile.nodeVersion) bullet(`node: ${profile.nodeVersion}`);
+  if (profile.languages.length) bullet(`languages: ${profile.languages.join(", ")}`);
+  if (profile.frameworks.length) bullet(`stack: ${profile.frameworks.join(", ")}`);
+  if (profile.isMonorepo) bullet(`monorepo: ${profile.workspaces.length} workspace(s)`);
+  if (profile.qualityGate.length) bullet(`quality gate: ${profile.qualityGate.join(" && ")}`);
+  for (const note of profile.notes) {
+    info("");
+    warn(note);
+  }
+  const imported = already ? null : await importContext(root).catch(() => null);
+  const foundExisting = (imported?.provenance.length ?? 0) > 0;
+  const written = [];
+  if (foundExisting && imported) {
+    for (const file of imported.files) {
+      await writeFileAtomic(path12.join(root, file.path), file.content);
+      written.push(file.path);
+    }
+    heading("Imported");
+    for (const p of imported.provenance.slice(0, 8)) bullet(`${p.from} -> ${p.to}`);
+    if (imported.provenance.length > 8) {
+      info(c.dim(`    ...and ${imported.provenance.length - 8} more`));
+    }
+  }
+  for (const file of foundExisting ? [] : starterFiles(profile)) {
+    const abs = path12.join(root, file.path);
+    const exists3 = await fs11.access(abs).then(() => true).catch(() => false);
+    if (exists3) continue;
+    await writeFileAtomic(abs, file.content);
+    written.push(file.path);
+  }
+  const detected = imported ? detectTargets(imported.provenance) : [];
+  const askable = interactive() && !flagBool(args, "yes", "y");
+  let targets = detected.length > 0 ? detected : ["claude", "copilot", "cursor", "codex"];
+  let agent = "claude";
+  let tracker = detectTracker();
+  if (askable) {
+    if (detected.length === 0) {
+      targets = await selectMany(
+        "Which agents should get your rules?",
+        [
+          { value: "claude", label: "Claude Code", note: "CLAUDE.md" },
+          { value: "copilot", label: "GitHub Copilot", note: ".github/copilot-instructions.md" },
+          { value: "cursor", label: "Cursor", note: ".cursor/rules/" },
+          { value: "codex", label: "Codex", note: "AGENTS.md" }
+        ],
+        targets
+      );
+    }
+    agent = await selectOne(
+      "Which agent should run tasks?",
+      [
+        { value: "claude", label: "Claude Code", note: "runs here, needs ANTHROPIC_API_KEY" },
+        { value: "copilot", label: "GitHub Copilot", note: "runs in GitHub, opens its own PR" },
+        { value: "codex", label: "Codex", note: "runs here" },
+        { value: "cursor", label: "Cursor", note: "runs here" }
+      ],
+      targets.includes("copilot") && !targets.includes("claude") ? "copilot" : "claude"
+    );
+    tracker = await selectOne(
+      "Where do tasks come from?",
+      [
+        { value: "file", label: "Markdown files in the repo", note: ".ctxmux/tasks/" },
+        { value: "github", label: "GitHub issues", note: "needs gh auth or GITHUB_TOKEN" },
+        { value: "jira", label: "Jira", note: "needs JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN" }
+      ],
+      tracker
+    );
+  }
+  await writeFileAtomic(
+    path12.join(root, ".ctxmux", "config.json"),
+    JSON.stringify({ targets, agent, tracker }, null, 2) + "\n"
+  );
+  if (!written.includes(".ctxmux/config.json")) written.push(".ctxmux/config.json");
+  const ignored = await ensureGitignore(root);
+  const ctx = {
+    profile,
+    tracker,
+    hasRemote: await hasGitRemote(root)
+  };
+  const workflows = [];
+  if (!flagBool(args, "no-workflows")) {
+    for (const file of workflowFiles(ctx)) {
+      const abs = path12.join(root, file.path);
+      if (await fs11.access(abs).then(() => true, () => false)) continue;
+      await writeFileAtomic(abs, file.content);
+      workflows.push(file.path);
+    }
+  }
+  const report2 = await sync({ root, targets });
+  const generated = report2.records.filter((r) => r.status === "created" || r.status === "updated");
+  heading("Created");
+  for (const p of written) bullet(p);
+  for (const p of workflows) bullet(p);
+  if (ignored) bullet(`.gitignore ${c.dim("(added .ctxmux/state/ and .ctxmux/cache/)")}`);
+  if (generated.length > 0) {
+    heading(`Compiled to ${targets.join(", ")}`);
+    for (const r of generated.slice(0, 10)) bullet(r.path);
+    if (generated.length > 10) info(c.dim(`    ...and ${generated.length - 10} more`));
+  }
+  info("");
+  success(
+    `${written.length + workflows.length} file(s) written, ${generated.length} compiled. Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`
+  );
+  if (report2.records.some((r) => r.status === "drift")) {
+    info("");
+    warn("Some generated files were edited by hand and were left alone.");
+    info("    " + c.dim("Move those edits into .ctxmux/ so they survive, or re-run sync with --force."));
+  }
+  if (workflows.length > 0) {
+    info("");
+    warn("Before the workflow can run:");
+    for (const item of remainingSetup(ctx)) bullet(item);
+  }
+  await reviewWhatIsThere(root, wantAdvice);
+  info("");
+  info("Next:");
+  info("  " + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim("   see what it would do, for free"));
+  info("  " + c.bold("ctxmux doctor") + c.dim("                              check for anything that will fail silently"));
+  return 0;
+}
+
+// packages/cli/src/commands/doctor.ts
+init_src();
+import { promises as fs12 } from "node:fs";
+import * as path13 from "node:path";
+async function exists2(p) {
+  try {
+    await fs12.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function doctorCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const checks = [];
+  let ctx;
+  try {
+    ctx = await loadContext({ root });
+    const m = ctx.model;
+    const total = m.rules.length + m.skills.length + m.agents.length + m.commands.length;
+    checks.push({
+      name: "canonical source",
+      status: "pass",
+      detail: `${total} node(s): ${m.rules.length} rules, ${m.skills.length} skills, ${m.agents.length} agents, ${m.commands.length} commands`
+    });
+    if (total === 0 && !m.instructions) {
+      checks.push({
+        name: "content",
+        status: "warn",
+        detail: ".ctxmux/ exists but is empty",
+        hint: "Run `ctxmux import` to pull in existing agent config, or `ctxmux init` for a starter pack."
+      });
+    }
+  } catch (err) {
+    checks.push({
+      name: "canonical source",
+      status: "fail",
+      detail: err.message,
+      hint: "Run `ctxmux import` or `ctxmux init` first."
+    });
+  }
+  if (ctx) {
+    try {
+      const report2 = await sync({ root, dryRun: true });
+      const drifted = report2.records.filter((r) => r.status === "drift");
+      const stale = report2.records.filter((r) => r.status !== "unchanged" && r.status !== "drift");
+      if (drifted.length > 0) {
+        checks.push({
+          name: "generated files",
+          status: "fail",
+          detail: `${drifted.length} hand-edited: ${drifted.map((d) => d.path).join(", ")}`,
+          hint: "Those edits will be lost on the next sync. Move them into .ctxmux/."
+        });
+      } else if (stale.length > 0) {
+        checks.push({
+          name: "generated files",
+          status: "warn",
+          detail: `${stale.length} out of date`,
+          hint: "Run `ctxmux sync`."
+        });
+      } else {
+        checks.push({ name: "generated files", status: "pass", detail: "all in sync" });
+      }
+    } catch (err) {
+      checks.push({ name: "generated files", status: "fail", detail: err.message });
+    }
+  }
+  const profile = await detectProfile(root);
+  if (profile.packageManager === "unknown") {
+    checks.push({
+      name: "package manager",
+      status: "warn",
+      detail: "could not be determined",
+      hint: "Add a `packageManager` field to package.json so agents install with the right tool."
+    });
+  } else {
+    checks.push({
+      name: "package manager",
+      status: "pass",
+      detail: profile.packageManagerVersion ? `${profile.packageManager}@${profile.packageManagerVersion}` : profile.packageManager
+    });
+  }
+  if (profile.qualityGate.length === 0) {
+    checks.push({
+      name: "quality gate",
+      status: "warn",
+      detail: "no test/lint/typecheck scripts found",
+      hint: "Agents have no way to verify their own work without these."
+    });
+  } else {
+    checks.push({
+      name: "quality gate",
+      status: "pass",
+      detail: profile.qualityGate.join(" && ")
+    });
+  }
+  for (const note of profile.notes) {
+    checks.push({ name: "toolchain", status: "warn", detail: note });
+  }
+  if (ctx && ctx.model.mcp.length > 0) {
+    const writable = ctx.model.mcp.filter((s) => !s.readOnly);
+    if (writable.length > 0) {
+      checks.push({
+        name: "mcp safety",
+        status: "warn",
+        detail: `${writable.length} server(s) are not read-only: ${writable.map((s) => s.name).join(", ")}`,
+        hint: "An agent acting on untrusted issue or ticket text should not hold write-capable tools."
+      });
+    } else {
+      checks.push({
+        name: "mcp safety",
+        status: "pass",
+        detail: `${ctx.model.mcp.length} server(s), all read-only`
+      });
+    }
+    const withLiterals = ctx.model.mcp.map((s) => ({ name: s.name, keys: literalEnvKeys(s.env) })).filter((s) => s.keys.length > 0);
+    if (withLiterals.length > 0) {
+      checks.push({
+        name: "mcp secrets",
+        status: "fail",
+        detail: withLiterals.map((s) => `${s.name}: ${s.keys.join(", ")}`).join("; "),
+        hint: 'Those values are copied into every generated MCP config. Use "${VAR}" and export the variable instead.'
+      });
+    } else {
+      checks.push({ name: "mcp secrets", status: "pass", detail: "no literal values declared" });
+    }
+    for (const server of ctx.model.mcp) {
+      if (server.transport !== "stdio" || !server.command) continue;
+      const looksLocal = server.command.startsWith(".") || server.command.startsWith("/");
+      if (looksLocal && !await exists2(path13.resolve(root, server.command))) {
+        checks.push({
+          name: `mcp: ${server.name}`,
+          status: "fail",
+          detail: `command not found: ${server.command}`
+        });
+      }
+    }
+  }
+  const workflowDir = path13.join(root, ".github", "workflows");
+  const workflowNames = await fs12.readdir(workflowDir).catch(() => []);
+  for (const name of workflowNames.filter((n) => /\.ya?ml$/.test(n))) {
+    const body = await fs12.readFile(path13.join(workflowDir, name), "utf8").catch(() => "");
+    if (!body.includes(WORKFLOW_MARKER)) continue;
+    const missing = WORKFLOW_FEATURES.filter((feature) => !body.includes(feature));
+    if (missing.length === 0) {
+      checks.push({ name: `workflow: ${name}`, status: "pass", detail: "up to date" });
+      continue;
+    }
+    checks.push({
+      name: `workflow: ${name}`,
+      status: "warn",
+      detail: `predates ${missing.join(", ")}`,
+      hint: missing.includes("share-state") ? "Without share-state the review workflow cannot find the run it is meant to advance, and says nothing. Add it, or re-scaffold into a scratch directory and compare." : "Compare against a freshly scaffolded workflow."
+    });
+  }
+  if (ctx) {
+    for (const target of ctx.config.targets) {
+      const compiler = COMPILERS[target];
+      const result = compiler.compile(ctx);
+      const missing = [];
+      for (const f of result.files) {
+        if (!await exists2(path13.resolve(root, f.path))) missing.push(f.path);
+      }
+      checks.push({
+        name: compiler.displayName,
+        status: missing.length === 0 ? "pass" : "warn",
+        detail: missing.length === 0 ? `${result.files.length} artefact(s) present` : `${missing.length} missing: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`,
+        ...missing.length > 0 ? { hint: "Run `ctxmux sync`." } : {}
+      });
+    }
+  }
+  heading("Diagnostics");
+  for (const check2 of checks) {
+    const line = `${check2.name.padEnd(22)} ${check2.detail}`;
+    if (check2.status === "pass") success(line);
+    else if (check2.status === "warn") warn(line);
+    else error(line);
+    if (check2.hint) info("      " + c.dim(check2.hint));
+  }
+  const failed = checks.filter((c2) => c2.status === "fail").length;
+  const warned = checks.filter((c2) => c2.status === "warn").length;
+  info("");
+  if (failed > 0) {
+    error(`${failed} failure(s), ${warned} warning(s).`);
+    return 1;
+  }
+  if (warned > 0) {
+    warn(`${warned} warning(s), no failures.`);
+    return 0;
+  }
+  success("All checks passed.");
+  return 0;
+}
+
+// packages/cli/src/commands/map.ts
+async function mapCommand(args) {
+  const root = flagString(args, "root") ?? process.cwd();
+  const budget = flagNumber(args, "budget", { default: 4e3, min: 100 });
+  const symbols = flagString(args, "symbols")?.split(",").map((s) => s.trim()).filter(Boolean);
+  const paths = flagString(args, "paths")?.split(",").map((s) => s.trim()).filter(Boolean);
+  const noCache = flagBool(args, "no-cache");
+  const showProfile = flagBool(args, "profile");
+  const text = args.positionals.join(" ");
+  if (!Number.isFinite(budget) || budget <= 0) {
+    warn("--budget must be a positive number of tokens.");
+    return 1;
+  }
+  if (showProfile) {
+    const profile = await detectProfile(root);
+    info(renderProfile(profile));
+    return 0;
+  }
+  if (!text && !symbols && !paths) {
+    warn("Nothing to search for.");
+    info("");
+    info('  ctxmux map "add a date formatting helper"');
+    info('  ctxmux map --symbols "use*,*Selector" --budget 2000');
+    info("  ctxmux map --profile");
+    return 1;
+  }
+  const started = Date.now();
+  const index = await buildIndex(root, { noCache });
+  const indexMs = Date.now() - started;
+  const result = buildMap(index, {
+    ...text ? { text } : {},
+    ...symbols ? { symbols } : {},
+    ...paths ? { paths } : {},
+    budget
+  });
+  info(result.text);
+  heading("Index");
+  bullet(`${index.files.length} file(s) indexed, ${index.skipped} skipped, ${indexMs}ms`);
+  if (index.truncated) {
+    warn(`The index stopped at the file ceiling, so this map covers only part of the repository.`);
+    info("    " + c.dim("Raise it with --max-files, or narrow the map with --paths."));
+  }
+  bullet(`${result.totalCandidates} candidate(s) matched, ${result.files.length} rendered, ${result.omitted} omitted`);
+  bullet(`~${result.estimatedTokens} tokens of ${budget} budget`);
+  if (index.git.commitCounts.size === 0) {
+    info("    " + c.dim("No git history available \u2014 recency and co-change ranking are inactive."));
+  }
+  return 0;
+}
+
+// packages/cli/src/commands/run.ts
+import { promises as fs15 } from "node:fs";
+import * as path17 from "node:path";
+
 // packages/agent-cli/src/index.ts
 import { existsSync } from "node:fs";
 import * as path14 from "node:path";
@@ -17322,7 +17690,7 @@ var DEFAULT_DETECTORS = [
   irreversibleWhileStruggling(),
   allTalkNoAction()
 ];
-function inspect(trajectory, detectors = DEFAULT_DETECTORS) {
+function inspect2(trajectory, detectors = DEFAULT_DETECTORS) {
   const found = [];
   for (const detector of detectors) {
     const smell = detector.inspect(trajectory);
@@ -17379,7 +17747,7 @@ var ProgressMonitor = class {
         this.opts.runner.diff().catch(() => "")
       ]);
       this.opts.trajectory.observe(files, diff);
-      const smells = inspect(this.opts.trajectory, this.opts.detectors);
+      const smells = inspect2(this.opts.trajectory, this.opts.detectors);
       const severity = worstSeverity(smells);
       const stagnant = this.opts.trajectory.stagnantSamples;
       const stallAfter = this.opts.stallAfterSamples ?? 3;
@@ -17494,7 +17862,7 @@ function toOtlp(trajectory, opts = {}) {
   const traceId = traceIdFor(meta.runId);
   const rootId = spanIdFor(meta.runId, "root");
   const endedAt = meta.endedAt ?? trajectory.all.at(-1)?.at ?? meta.startedAt;
-  const smells = inspect(trajectory);
+  const smells = inspect2(trajectory);
   const worst = smells.find((s) => s.severity === "block") ?? smells[0];
   const root = {
     traceId,
@@ -21378,7 +21746,7 @@ async function runCommand(args) {
       await reclaim();
       return code;
     }
-    const smells = activeTrajectory.length > 0 ? inspect(activeTrajectory) : [];
+    const smells = activeTrajectory.length > 0 ? inspect2(activeTrajectory) : [];
     if (smells.length > 0) {
       heading("What the agent did");
       for (const smell of smells) {
@@ -22596,7 +22964,7 @@ function isExemplary(run3, trajectory) {
   if (failedGates.length > 0) {
     reasons.push(`${failedGates.map((g) => g.gate).join(", ")} did not pass`);
   }
-  const smells = inspect(trajectory);
+  const smells = inspect2(trajectory);
   if (smells.length > 0) {
     reasons.push(`trajectory shows ${smells.map((s) => s.name).join(", ")}`);
   }
@@ -23087,7 +23455,7 @@ async function traceCommand(args) {
   } else {
     info(trajectory.render({ limit }));
   }
-  const smells = inspect(trajectory);
+  const smells = inspect2(trajectory);
   if (smells.length === 0) {
     info("");
     success("Nothing concerning in how this was done.");
@@ -23256,349 +23624,6 @@ async function addCommand(args) {
   info(`  2. ${c.bold("git diff")}        ${c.dim("review what was added \u2014 this is third-party content")}`);
   if (resolved.kind === "git") await fs21.rm(source.dir, { recursive: true, force: true });
   return 0;
-}
-
-// packages/council/src/static.ts
-var PATH_LIKE = /(?:^|[\s`'"(])((?:[\w.-]+\/){1,}[\w.-]+\.[a-z]{1,5})(?=[\s`'".,;:)]|$)/gi;
-var POSITIVE = /\b(?:always|must|should|prefer|use)\b/i;
-var NEGATIVE = /\b(?:never|must not|should not|do not|don't|avoid)\b/i;
-function normalise(body) {
-  return body.replace(/\s+/g, " ").trim().toLowerCase();
-}
-function reachedTargets(node, configured) {
-  if (!node.targets || node.targets.length === 0) return [...configured];
-  return configured.filter((t) => node.targets?.includes(t));
-}
-function checkEmptyBody(where, body) {
-  if (body.trim().length > 0) return [];
-  return [
-    {
-      check: "empty-body",
-      severity: "error",
-      where,
-      message: "The body is empty, so this compiles to nothing.",
-      fix: "Write the guidance, or delete the file. An empty node is invisible in every target."
-    }
-  ];
-}
-function checkNeverCompiles(where, node, facts) {
-  if (facts.targets.length === 0) return [];
-  if (reachedTargets(node, facts.targets).length > 0) return [];
-  const asked = node.targets?.join(", ") ?? "none";
-  return [
-    {
-      check: "never-compiles",
-      severity: "error",
-      where,
-      message: `Restricted to ${asked}, none of which this repository compiles.`,
-      fix: `Add one of ${asked} to targets in .ctxmux/config.json, or widen this node's targets. As it stands it reaches nothing.`
-    }
-  ];
-}
-function checkGlobsIgnored(where, rule) {
-  if (!rule.alwaysApply || rule.globs.length === 0) return [];
-  return [
-    {
-      check: "globs-ignored",
-      severity: "warning",
-      where,
-      message: "alwaysApply is set, so the globs are dead configuration.",
-      fix: "Drop alwaysApply to scope this to the globs, or delete the globs to say plainly that it is repo-wide."
-    }
-  ];
-}
-function checkGlobsMatchNothing(where, globs, facts) {
-  if (globs.length === 0 || facts.files.length === 0) return [];
-  const dead = globs.filter((g) => {
-    const re = globToRegExp(g);
-    return !facts.files.some((f) => re.test(f));
-  });
-  if (dead.length === 0) return [];
-  const all = dead.length === globs.length;
-  return [
-    {
-      check: "globs-match-nothing",
-      severity: "warning",
-      where,
-      message: `${all ? "No glob" : `${dead.length} of ${globs.length} globs`} matches any file: ${dead.join(", ")}.`,
-      fix: all ? "Nothing activates this. Fix the pattern, or delete the node if what it described is gone." : `Remove the dead patterns, or correct them: ${dead.join(", ")}.`
-    }
-  ];
-}
-function checkDanglingPaths(where, body, facts) {
-  if (facts.files.length === 0) return [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const m of body.matchAll(PATH_LIKE)) {
-    const p = m[1];
-    if (!p || facts.files.includes(p) || looksLikeDomain(p)) continue;
-    seen.add(p);
-  }
-  if (seen.size === 0) return [];
-  const all = [...seen];
-  const paths = all.slice(0, 5);
-  const rest = all.length - paths.length;
-  return [
-    {
-      check: "dangling-path",
-      severity: "warning",
-      where,
-      message: `Refers to ${all.length === 1 ? "a path that no longer exists" : `${all.length} paths that no longer exist`}: ${paths.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}.`,
-      fix: "Point at where the code moved, or drop the reference. An agent asked to look there will find nothing and guess."
-    }
-  ];
-}
-function looksLikeDomain(p) {
-  const first = p.slice(0, p.indexOf("/"));
-  return first.includes(".") && !first.startsWith(".");
-}
-function checkWeakActivation(where, skill) {
-  const d = skill.description.trim();
-  if (d.length >= 60 && ACTIVATION_CUE.test(d)) return [];
-  return [
-    {
-      check: "weak-activation",
-      severity: "suggestion",
-      where,
-      message: "The description is what decides whether this skill ever activates, and this one is thin.",
-      fix: "Say when to use it, in the words someone would actually type. Descriptions that only name the topic do not fire."
-    }
-  ];
-}
-var ACTIVATION_CUE = /\b(?:when|use|if|trigger(?:s|ed)?|says?|asks?|invoke[sd]?)\b|\/[a-z][\w-]+|["'\u201c][^"'\u201d]{4,}["'\u201d]/i;
-function checkDuplicates(nodes) {
-  const byBody = /* @__PURE__ */ new Map();
-  for (const n of nodes) {
-    const key = normalise(n.body);
-    if (key.length < 40) continue;
-    const seen = byBody.get(key);
-    if (seen) seen.push(n.where);
-    else byBody.set(key, [n.where]);
-  }
-  const out = [];
-  for (const group of byBody.values()) {
-    if (group.length < 2) continue;
-    const [first, ...rest] = [...group].sort();
-    const shown = rest.slice(0, 4);
-    const more = rest.length - shown.length;
-    out.push({
-      check: "duplicate-body",
-      severity: "warning",
-      where: first,
-      message: `Identical to ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}.`,
-      fix: "Keep one. Two copies drift, and then agents get told two different things by files that used to agree."
-    });
-  }
-  return out;
-}
-function checkContradictions(rules) {
-  const against = /* @__PURE__ */ new Map();
-  for (let i = 0; i < rules.length; i++) {
-    for (let j = i + 1; j < rules.length; j++) {
-      const a = rules[i];
-      const b = rules[j];
-      if (!a || !b) continue;
-      if (!scopesOverlap(a.rule, b.rule)) continue;
-      const shared = sharedSubject(a.rule.body, b.rule.body);
-      if (!shared) continue;
-      const pa = polarityAbout(a.rule.body, shared);
-      const pb = polarityAbout(b.rule.body, shared);
-      if (!pa || !pb || pa === pb) continue;
-      const entry = against.get(a.where);
-      if (entry) entry.with.push(b.where);
-      else against.set(a.where, { with: [b.where], subject: shared });
-    }
-  }
-  const out = [];
-  for (const [where, { with: others, subject }] of against) {
-    const shown = others.slice(0, 3);
-    const more = others.length - shown.length;
-    out.push({
-      check: "contradiction",
-      severity: "warning",
-      where,
-      message: `Says the opposite of ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""} about "${subject}", and their scopes overlap.`,
-      fix: "Decide which one is true and delete the other, or scope them so they cannot both apply."
-    });
-  }
-  return out;
-}
-function sentences(body) {
-  return body.split(/(?<=[.!?;])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
-}
-function polarityAbout(body, subject) {
-  const mentions = new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
-  for (const sentence2 of sentences(body)) {
-    if (!mentions.test(sentence2)) continue;
-    if (NEGATIVE.test(sentence2)) return "against";
-    if (POSITIVE.test(sentence2)) return "for";
-  }
-  return null;
-}
-function scopesOverlap(a, b) {
-  const aWide = a.alwaysApply || a.globs.length === 0;
-  const bWide = b.alwaysApply || b.globs.length === 0;
-  if (aWide || bWide) return true;
-  return a.globs.some((g) => b.globs.some((h) => globsOverlap(g, h)));
-}
-function sharedSubject(a, b) {
-  const shared = phrases(a);
-  for (const phrase of phrases(b)) if (shared.has(phrase)) return phrase;
-  return null;
-}
-function phrases(body) {
-  const words = body.toLowerCase().match(/\b[a-z][a-z+-]{2,}\b/g) ?? [];
-  const out = /* @__PURE__ */ new Set();
-  for (let i = 0; i + 1 < words.length; i++) {
-    const first = words[i];
-    const second = words[i + 1];
-    if (!first || !second) continue;
-    if (STOP.has(first) && STOP.has(second)) continue;
-    out.add(`${first} ${second}`);
-  }
-  return out;
-}
-var STOP = /* @__PURE__ */ new Set([
-  "about",
-  "after",
-  "again",
-  "against",
-  "because",
-  "before",
-  "being",
-  "between",
-  "could",
-  "every",
-  "first",
-  "other",
-  "should",
-  "their",
-  "there",
-  "these",
-  "thing",
-  "those",
-  "under",
-  "until",
-  "where",
-  "which",
-  "while",
-  "would",
-  "always",
-  "never",
-  "avoid",
-  "prefer"
-]);
-function inspect2(model, facts) {
-  const out = [];
-  const bodies = [];
-  const rules = [];
-  for (const rule of model.rules) {
-    const where = `rules/${rule.name}`;
-    out.push(...checkEmptyBody(where, rule.body));
-    if (rule.body.trim().length > 0) {
-      out.push(...checkDanglingPaths(where, rule.body, facts));
-      bodies.push({ where, body: rule.body });
-      rules.push({ where, rule });
-    }
-    out.push(...checkNeverCompiles(where, rule, facts));
-    out.push(...checkGlobsIgnored(where, rule));
-    out.push(...checkGlobsMatchNothing(where, rule.globs, facts));
-  }
-  for (const skill of model.skills) {
-    const where = `skills/${skill.name}`;
-    out.push(...checkEmptyBody(where, skill.body));
-    if (skill.body.trim().length > 0) {
-      out.push(...checkDanglingPaths(where, skill.body, facts));
-      bodies.push({ where, body: skill.body });
-    }
-    out.push(...checkNeverCompiles(where, skill, facts));
-    out.push(...checkGlobsMatchNothing(where, skill.globs, facts));
-    out.push(...checkWeakActivation(where, skill));
-  }
-  for (const agent of model.agents) {
-    const where = `agents/${agent.name}`;
-    out.push(...checkEmptyBody(where, agent.body));
-    out.push(...checkNeverCompiles(where, agent, facts));
-    if (agent.body.trim().length > 0) {
-      out.push(...checkDanglingPaths(where, agent.body, facts));
-      bodies.push({ where, body: agent.body });
-    }
-  }
-  for (const command of model.commands) {
-    const where = `commands/${command.name}`;
-    out.push(...checkEmptyBody(where, command.body));
-    out.push(...checkNeverCompiles(where, command, facts));
-    if (command.body.trim().length > 0) {
-      out.push(...checkDanglingPaths(where, command.body, facts));
-      bodies.push({ where, body: command.body });
-    }
-  }
-  if (model.instructions) {
-    out.push(...checkEmptyBody("instructions", model.instructions.body));
-    if (model.instructions.body.trim().length > 0) {
-      out.push(...checkDanglingPaths("instructions", model.instructions.body, facts));
-    }
-  }
-  out.push(...checkDuplicates(bodies));
-  out.push(...checkContradictions(rules));
-  const rank2 = { error: 0, warning: 1, suggestion: 2 };
-  return out.sort(
-    (x, y) => (rank2[x.severity] ?? 3) - (rank2[y.severity] ?? 3) || x.where.localeCompare(y.where) || x.check.localeCompare(y.check)
-  );
-}
-
-// packages/cli/src/commands/advise.ts
-init_src();
-var LABEL = {
-  error: "Does not work",
-  warning: "Probably not what you meant",
-  suggestion: "Worth a look"
-};
-async function adviseCommand(args) {
-  const root = flagString(args, "root") ?? process.cwd();
-  const json = flagBool(args, "json");
-  const loaded = await loadContext({ root });
-  const tracked = await listTrackedFiles(root);
-  const findings = inspect2(loaded.model, {
-    files: tracked ?? [],
-    targets: loaded.config.targets
-  });
-  if (json) {
-    info(JSON.stringify({ findings, checked: countOf(loaded.model) }, null, 2));
-    return 0;
-  }
-  if (findings.length === 0) {
-    success("Nothing to say. Every rule reaches a target, applies to something, and agrees with the others.");
-    if (tracked === null) hintNoGit();
-    return 0;
-  }
-  for (const severity of ["error", "warning", "suggestion"]) {
-    const group = findings.filter((f) => f.severity === severity);
-    if (group.length === 0) continue;
-    heading(LABEL[severity]);
-    for (const f of group) {
-      bullet(`${c.dim(f.where)}  ${f.message}`);
-      info("    " + c.dim(f.fix));
-    }
-  }
-  const errors = findings.filter((f) => f.severity === "error").length;
-  info("");
-  info(
-    errors > 0 ? `${findings.length} to look at, ${errors} of which will not work at all.` : `${findings.length} to look at. Nothing is broken.`
-  );
-  if (tracked === null) hintNoGit();
-  return 0;
-}
-function hintNoGit() {
-  warn("Not a git repository, so dead globs and stale paths were not checked.");
-}
-function countOf(model) {
-  const parts = [
-    [model.rules.length, "rule"],
-    [model.skills.length, "skill"],
-    [model.agents.length, "agent"],
-    [model.commands.length, "command"]
-  ];
-  return parts.filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
 }
 
 // packages/cli/src/commands/handoff.ts
@@ -23835,6 +23860,7 @@ ${c.bold("COMMON OPTIONS")}
   --targets <list>    Comma-separated: claude,copilot,cursor,codex
   -n, --dry-run       Show what would happen without writing
   -f, --force         Overwrite hand-edited generated files
+      --advise        After init, review the result and report what will not work
   --explain           Print the fidelity report: what each target loses
   -h, --help          Show this
   -v, --version       Show version

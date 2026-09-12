@@ -1,0 +1,91 @@
+# Finds work. Does not do it — that is survey-run.yml, which only ever sees issues that
+# survived a human reading them.
+#
+# Weekly, not nightly. Nothing dedupes findings, so a nightly survey rediscovers the same
+# "add error handling here" every night until someone acts on it, and the issue list becomes
+# noise you stop reading. Weekly gives you time to triage between runs.
+
+name: survey
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC. Findings are waiting when the week starts.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: survey
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  survey:
+    # Nothing runs until this is set. Costs money on a schedule, so it is opt-in.
+    if: vars.SURVEY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Findings are much better with history to look at — what changed recently, what
+          # keeps getting patched.
+          fetch-depth: 50
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: '--allowedTools "Read,Grep,Glob,Bash(gh issue list),Bash(gh issue create),Bash(git log),Bash(git diff),Bash(pnpm test),Bash(pnpm typecheck)"'
+          prompt: |
+            Survey this repository and file GitHub issues for work worth doing.
+
+            FIRST, read the existing open issues:
+
+                gh issue list --state open --limit 100
+
+            Anything already described there is not a finding. Filing a duplicate is worse
+            than filing nothing, because it trains the maintainer to stop reading these.
+
+            Then look for, in rough order of what is worth your attention:
+
+            - Bugs. Logic that is wrong, not merely ugly. A regex that cannot match what it
+              claims to, an await that is missing, a comparison that is backwards, an error
+              path that swallows the error.
+            - Tests that pass whether or not the code works. A test that would still pass with
+              the implementation deleted is worse than no test, because it is believed.
+            - Behaviour that contradicts what the README or a doc comment promises. Either the
+              code or the sentence is wrong; say which you think it is.
+            - Duplicated logic that has already drifted apart between copies.
+
+            Do not file: style preferences, formatting, "consider extracting a helper",
+            speculative abstraction, dependency bumps, or anything whose entire justification
+            is consistency. This project deliberately keeps three runtime dependencies and
+            prefers the boring shape.
+
+            File AT MOST 3 issues. Fewer is fine. Zero is a perfectly good answer on a week
+            when nothing is wrong, and much better than padding.
+
+            Each issue must be actionable by an agent that cannot ask you questions:
+
+                gh issue create \
+                  --label contextmux \
+                  --title "<specific, names the file or behaviour>" \
+                  --body "<the body described below>"
+
+            The body must contain, as sections:
+
+            - What is wrong, with the file and line, and why it is wrong rather than merely
+              surprising. Quote the actual code.
+            - How it fails: concrete input or state that produces the wrong result. If you
+              cannot describe a way it fails, do not file it.
+            - Expected behaviour: what should happen instead.
+            - Scope: a line of the form `Allow: packages/<name>/src/**` naming the narrowest
+              set of globs a fix should need. A later automated run uses this to fence the
+              agent, so guessing wide defeats the point.
+
+            You may run `pnpm test` and `pnpm typecheck` to check a suspicion before filing.
+            Do NOT modify any files, do not open pull requests, and do not push anything.
+            Filing issues is the entire job.

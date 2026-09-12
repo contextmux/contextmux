@@ -1,0 +1,60 @@
+# Does the work survey.yml found. Runs contextmux on this repository, which is the point:
+# if the gates cannot survive their own codebase, they are not worth shipping.
+#
+# Only issues labelled `ctxmux` are eligible, and the label is applied by survey.yml — so
+# nothing reaches this workflow that you have not had a chance to delete first. Removing the
+# label is the veto.
+
+name: survey run
+
+on:
+  schedule:
+    # Nightly on weekdays. Takes ONE issue per run, so a week of findings is worked through
+    # gradually rather than in one unreviewable burst.
+    - cron: '0 3 * * 2-6'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Issue number. Leave empty to take the next eligible one.'
+        required: false
+
+concurrency:
+  # Serialise, so two runs cannot pick up the same issue.
+  group: survey-run-${{ inputs.task || 'next' }}
+  cancel-in-progress: false
+
+permissions:
+  # write, because run state is pushed to a branch of its own — see share-state.
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    if: vars.SURVEY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: contextmux/contextmux/packages/action@v0
+        with:
+          command: run
+          task: ${{ inputs.task }}
+          # Only issues labelled `contextmux` are eligible — the tracker's default, so no
+          # CTXMUX_LABEL is needed. Opt-in by construction: an issue filed by hand is ignored
+          # unless somebody adds the label deliberately, and removing it is the veto.
+          tracker: github
+          repo: ${{ github.repository }}
+          agent: claude
+          # The narrow default. An issue that needs more says so in its Scope line, and you
+          # widen this by hand for that run — which is a decision worth making consciously.
+          allow: 'packages/*/src/**,packages/*/test/**'
+          deny: 'packages/action/dist/**,pnpm-lock.yaml,.github/workflows/**'
+          max-rounds: 2
+          # Adds the minimalism gates: no unrequested dependencies, no duplicate symbols, no
+          # speculative abstraction. This repository has opinions about all three.
+          args: '--open-pr --minimal'
+          share-state: 'true'
+          github-token: ${{ secrets.CTXMUX_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

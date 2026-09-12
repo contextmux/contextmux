@@ -43,9 +43,15 @@ ctxmux init       # reads what is already there, compiles it back out
 If your team only uses Copilot, `init` notices and only writes Copilot files. Nothing is
 generated for tools you do not use.
 
+Rules rot as the code moves under them. This reads them back and says which no longer work:
+
+```bash
+ctxmux advise     # no key, no network, nothing to pay for
+```
+
 This half stands alone: no key, no agent, no cost — it only touches files.
 
-→ **[Getting started](#getting-started)** · [Run a task](#running-a-task) · [How compiling works](#how-the-compiling-works)
+→ **[Getting started](#getting-started)** · [Run a task](#running-a-task) · [Review your rules](#4-reviews-the-rules-themselves) · [How compiling works](#how-the-compiling-works)
 
 ---
 
@@ -401,7 +407,7 @@ repository's Actions tab.
 
 ---
 
-## The three things it does
+## The four things it does
 
 ### 1. Compiles one source to the targets you use
 
@@ -468,6 +474,28 @@ escalated.
 
 Isolation is not best-effort: if a worktree cannot be created, contextmux refuses to run rather
 than quietly editing your checkout.
+
+### 4. Reviews the rules themselves
+
+Rules rot. One gets scoped to a directory that was renamed, two drift into contradicting each
+other, a skill's description becomes too vague to ever activate — and none of that announces
+itself, because a rule that never fires looks exactly like a rule nobody broke.
+
+```bash
+ctxmux advise
+```
+
+Eight checks, none of which need a model, a network or a key: a rule that compiles to nothing, a
+rule restricted to an agent you do not build for, globs matching no file, paths that have moved,
+duplicate bodies that will drift, opposite instructions whose scopes overlap.
+
+It exits zero. These are things to look at, not a build failure — `check` is the command whose
+exit code is a contract.
+
+Two commands do cost money, and both are opt-in. `advise --depth single` also puts the rules to
+your agent, for the questions a word list cannot decide: does this say what to do rather than
+describe how things are, could a reviewer tell from a diff that it was followed, does it tell a
+competent agent anything it would not already do. `propose` asks what rules are missing.
 
 ---
 
@@ -897,6 +925,7 @@ The CLI is `contextmux`; everything else is a library you can use on its own.
 | `@contextmux/learn` | Recurrence detection and context proposals |
 | `@contextmux/trajectory` | Step-level recording, stall detection, trajectory smells |
 | `@contextmux/handoff` | Transferring an unfinished task between agents |
+| `@contextmux/council` | Reviewing the rules themselves, and proposing ones that are missing |
 
 Every adapter passes the same published contract suite, so "implements the interface" means
 the same thing for all of them:
@@ -954,8 +983,8 @@ shells out to `git` rather than linking anything copyleft.
 ## Status
 
 Pre-release. The context layer, orchestration core, gates, five agent adapters, three trackers,
-comparison, learning, recovery, handoff, skill packs and OTLP export are built and covered by
-1,143 tests.
+comparison, learning, recovery, handoff, skill packs, rule review and OTLP export are built and
+covered by 1,261 tests.
 
 **Run against the real thing:** the Claude Code adapter, including its streaming format. Jira —
 reading real tickets, converting their descriptions, extracting acceptance criteria. GitHub —
@@ -963,7 +992,9 @@ creating an issue, delegating to the Copilot coding agent, observing the pull re
 produced, and verifying that branch locally.
 
 **Not yet run against the real thing:** the Cursor, Codex and local adapters were written from
-documentation. Every vendor-specific detail is confined to a small declarative spec that can be
+documentation, and so was the read-only invocation that `advise --depth` and `propose` use to
+ask an agent a question — only Claude declares one at all, so no other agent can be a judge.
+The free checks behind `advise` need no agent and are unaffected. Every vendor-specific detail is confined to a small declarative spec that can be
 corrected without touching any logic, and `preflight` says so out loud rather than failing in a
 way that looks like the agent doing poor work.
 

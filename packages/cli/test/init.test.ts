@@ -428,6 +428,31 @@ describe('init --advise', () => {
  * The first place most people meet any of these names, so a bare `CTXMUX_TOKEN is not set`
  * leaves them with a string and no next step.
  */
+describe('setting up without a terminal', () => {
+  it('honours CTXMUX_AGENT, so a Copilot repository can be scripted', async () => {
+    await initGitWithRemote(root)
+    process.env['CTXMUX_AGENT'] = 'copilot'
+    try {
+      const { text } = await runCli(initCommand, argv(root, 'init --yes'))
+      expect(text).toContain('through copilot')
+    } finally {
+      delete process.env['CTXMUX_AGENT']
+    }
+  })
+
+  it('falls back rather than writing an agent nobody has', async () => {
+    await initGitWithRemote(root)
+    process.env['CTXMUX_AGENT'] = 'not-an-agent'
+    try {
+      const { text } = await runCli(initCommand, argv(root, 'init --yes'))
+      // config.json is read by every later command; a typo there fails far from its cause.
+      expect(text).toContain('through claude')
+    } finally {
+      delete process.env['CTXMUX_AGENT']
+    }
+  })
+})
+
 describe('before the workflow can run', () => {
   it('says what each thing is, not just what it is called', () => {
     const steps = remainingSetup({ tracker: 'jira', hasRemote: true } as never)
@@ -435,6 +460,16 @@ describe('before the workflow can run', () => {
 
     expect(token?.what).toContain('open pull requests')
     expect(token?.what).toContain('cannot be the built-in GITHUB_TOKEN')
+  })
+
+  it('says where a value comes from, not only that a secret needs setting', () => {
+    // `gh secret set` prompts for a value it cannot create. A step that stops at the command
+    // leaves somebody at a prompt with nothing to paste.
+    const steps = remainingSetup({ tracker: 'jira', hasRemote: true, agent: 'claude' } as never)
+
+    expect(steps.find((s) => s.what.startsWith('CTXMUX_TOKEN'))?.how).toContain('Fine-grained tokens')
+    expect(steps.find((s) => s.what.startsWith('JIRA_API_TOKEN'))?.how).toContain('id.atlassian.com')
+    expect(steps.find((s) => s.what.startsWith('ANTHROPIC_API_KEY'))?.how).toContain('console.anthropic.com')
   })
 
   it('gives a command that sets it', () => {

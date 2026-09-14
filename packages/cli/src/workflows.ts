@@ -214,7 +214,14 @@ export function remainingSetup(ctx: WorkflowContext, known: Set<string> = new Se
         'CTXMUX_TOKEN — a GitHub token contextmux uses to open pull requests, comment, and push ' +
         'run state. It cannot be the built-in GITHUB_TOKEN: GitHub refuses to start a workflow ' +
         'from an event that token created, so the review half of the loop would never fire.',
-      how: 'gh secret set CTXMUX_TOKEN    # a fine-grained PAT with contents, issues and pull-requests write',
+      // `gh secret set` prompts for a value; it does not mint one. Saying only "set this
+      // secret" leaves somebody at a prompt with nothing to paste, which is the same gap this
+      // whole list exists to close.
+      how:
+        'gh auth token | gh secret set CTXMUX_TOKEN    # quick: reuses your gh login, but that is full account access\n' +
+        '    Scoped instead: github.com > Settings > Developer settings > Fine-grained tokens.\n' +
+        '    This repository only, with Contents, Issues and Pull requests set to read and write.\n' +
+        '    Then: gh secret set CTXMUX_TOKEN  and paste it.',
       done: known.has('CTXMUX_TOKEN'),
     },
   ]
@@ -228,14 +235,14 @@ export function remainingSetup(ctx: WorkflowContext, known: Set<string> = new Se
       },
       {
         what: 'JIRA_EMAIL — the account the API token belongs to.',
-        how: 'gh secret set JIRA_EMAIL',
+        how: 'gh secret set JIRA_EMAIL    # prompts; paste the address you sign in to Jira with',
         done: known.has('JIRA_EMAIL'),
       },
       {
         what:
           'JIRA_API_TOKEN — from id.atlassian.com under Security. It carries everything your ' +
           'Jira account can reach, so a service account is safer than your own.',
-        how: 'gh secret set JIRA_API_TOKEN',
+        how: 'gh secret set JIRA_API_TOKEN    # create it at id.atlassian.com first, then paste',
         done: known.has('JIRA_API_TOKEN'),
       },
     )
@@ -252,7 +259,7 @@ export function remainingSetup(ctx: WorkflowContext, known: Set<string> = new Se
   } else if (ctx.agent && ctx.agent !== 'local') {
     steps.push({
       what: `ANTHROPIC_API_KEY — credentials for ${ctx.agent}, which runs on the runner rather than in a vendor's cloud.`,
-      how: 'gh secret set ANTHROPIC_API_KEY',
+      how: 'gh secret set ANTHROPIC_API_KEY    # from console.anthropic.com, then paste',
       done: known.has('ANTHROPIC_API_KEY'),
     })
   }

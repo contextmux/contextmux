@@ -39,6 +39,24 @@ async function ensureGitignore(root: string): Promise<boolean> {
 }
 
 
+/**
+ * Which agent will run tasks, before anybody is asked.
+ *
+ * Reads the same variable `run` does, so `CTXMUX_AGENT=copilot ctxmux init --yes` sets up a
+ * Copilot repository rather than quietly writing Claude into the config. The tracker beside
+ * this has always been detected from the environment; the agent was hardcoded, which left no
+ * way to script setup for anything but the default.
+ *
+ * An unrecognised value falls back rather than being written through: config.json is read by
+ * every later command, and a typo there fails somewhere much further from its cause.
+ */
+function detectAgent(): string {
+  const named = process.env['CTXMUX_AGENT']?.trim()
+  return named && AGENTS.includes(named) ? named : 'claude'
+}
+
+const AGENTS = ['claude', 'copilot', 'cursor', 'codex', 'local']
+
 /** Which tracker this repository will resolve, so the workflow names the right one. */
 function detectTracker(): string {
   if (process.env['JIRA_URL']?.trim()) return 'jira'
@@ -212,7 +230,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   const askable = interactive() && !flagBool(args, 'yes', 'y')
 
   let targets = detected.length > 0 ? detected : ['claude', 'copilot', 'cursor', 'codex']
-  let agent = 'claude'
+  let agent = detectAgent()
   let tracker = detectTracker()
 
   if (askable) {

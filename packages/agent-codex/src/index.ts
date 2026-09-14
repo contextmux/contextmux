@@ -65,6 +65,19 @@ export const CODEX_SPEC: CliAgentSpec = {
     return { args }
   },
 
+  /*
+   * Read-only, one shot.
+   *
+   * `--sandbox read-only` is the same flag `invoke` uses when nothing was isolated, so this is
+   * not a new capability being claimed — it is the existing one, without the write half.
+   */
+  askOnly({ prompt, model }) {
+    const args = ['exec', '--json', '--sandbox', 'read-only']
+    if (model) args.push('--model', model)
+    args.push(prompt)
+    return { args }
+  },
+
   parse(stdout, stderr, exitCode): CliOutcome | null {
     /*
      * `--json` emits a JSONL event stream, so the useful content is spread across lines rather

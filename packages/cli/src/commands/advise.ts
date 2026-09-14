@@ -1,5 +1,6 @@
-import { askOnce } from '@contextmux/agent-cli'
+import { askOnce, type CliAgentSpec } from '@contextmux/agent-cli'
 import { CLAUDE_SPEC } from '@contextmux/agent-claude'
+import { CODEX_SPEC } from '@contextmux/agent-codex'
 import { critique, inspect, type Depth, type Judge, type Suggestion } from '@contextmux/council'
 import { loadContext } from '@contextmux/context'
 import { listTrackedFiles } from '@contextmux/repo'
@@ -28,6 +29,8 @@ export interface Advice {
   hadFileList: boolean
   /** "3 rules, 8 skills" — what was looked at. */
   checked: string
+  /** The agent this repository configured, if it named one. */
+  agent?: string
 }
 
 /**
@@ -47,6 +50,7 @@ export async function advise(root: string): Promise<Advice> {
     checked: countOf(loaded.model),
     targets: loaded.config.targets,
     sampleFiles: (tracked ?? []).slice(0, 40),
+    ...(loaded.config.agent ? { agent: loaded.config.agent } : {}),
   }
 }
 
@@ -63,19 +67,45 @@ export function renderAdvice(findings: Suggestion[]): void {
   }
 }
 
+/** Specs that can be asked a question without also being allowed to edit. */
+const JUDGES: Record<string, CliAgentSpec> = {
+  claude: CLAUDE_SPEC,
+  codex: CODEX_SPEC,
+}
+
 /**
- * The judge, when one was asked for.
+ * A judge built from the agent this repository actually configured.
  *
- * Only Claude declares a read-only invocation today, so only Claude can judge. An agent that
- * cannot be asked a question without also being allowed to edit is not one to point at a
- * repository for an opinion, so the honest answer is that it is unavailable rather than to
- * reach for `invoke` and hope.
+ * It used to be Claude regardless — so a repository set up for Copilot silently spent Claude
+ * credits and nobody was told. Using somebody's configured agent is the whole point of
+ * configuring one, and quietly substituting a different vendor is worse than refusing.
+ *
+ * Copilot cannot be a judge at all. Its coding agent is delegated: you hand it a task and it
+ * opens a pull request in GitHub's cloud. There is no interface that answers a question, so
+ * this is a property of the product rather than a gap here.
+ *
+ * Cursor and the local adapters are absent for a different reason: neither has a documented way
+ * to run without also being able to edit. `opencode run` looks like a question until you notice
+ * it is a coding agent with a filesystem, and an agent that can only be asked something by also
+ * being allowed to change things is not one to point at a repository for an opinion.
  */
-export function judgeFor(model: string | undefined): Judge {
+export function judgeFor(agent: string | undefined, model: string | undefined): Judge {
+  const name = agent ?? 'claude'
+  const spec = JUDGES[name]
+  if (!spec) {
+    throw new Error(
+      `${name} cannot be asked a question — it ${
+        name === 'copilot'
+          ? 'takes work and opens pull requests, and has no interface that answers one'
+          : 'has no way to run without also being allowed to edit files'
+      }.\n` +
+        `Pass --agent with one of: ${Object.keys(JUDGES).join(', ')}, if you want to use a different agent for this.`,
+    )
+  }
   return {
-    id: CLAUDE_SPEC.id,
+    id: spec.id,
     async ask(prompt: string): Promise<string> {
-      const out = await askOnce(CLAUDE_SPEC, { prompt, ...(model ? { model } : {}) })
+      const out = await askOnce(spec, { prompt, ...(model ? { model } : {}) })
       if (!out.ok) throw new Error(out.reason)
       return out.text
     },
@@ -115,12 +145,12 @@ export async function adviseCommand(args: ParsedArgs): Promise<number> {
   const root = flagString(args, 'root') ?? process.cwd()
   const json = flagBool(args, 'json')
   const depth = parseDepth(flagString(args, 'depth'))
-  const { findings: staticFindings, hadFileList, checked, targets, sampleFiles } = await advise(root)
+  const { findings: staticFindings, hadFileList, checked, targets, sampleFiles, agent } = await advise(root)
 
   const findings =
     depth === 'static'
       ? staticFindings
-      : await withJudge(staticFindings, (await loadContext({ root })).model, judgeFor(flagString(args, 'model')), {
+      : await withJudge(staticFindings, (await loadContext({ root })).model, judgeFor(flagString(args, 'agent') ?? agent, flagString(args, 'model')), {
           depth,
           context: { targets, sampleFiles },
         })

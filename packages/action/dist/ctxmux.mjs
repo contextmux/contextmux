@@ -17589,6 +17589,108 @@ function claudeAgent(opts = {}) {
   return new ClaudeAgent(opts);
 }
 
+// packages/agent-codex/src/index.ts
+var CODEX_SPEC = {
+  id: "codex",
+  displayName: "Codex",
+  bin: "codex",
+  confidence: "unverified",
+  capabilities: {
+    promptControl: "full",
+    /*
+     * `codex exec` is a batch invocation rather than a resumable conversation, so a revision
+     * round re-invokes with the feedback rather than continuing a session. Declaring
+     * `reinvoke` is what makes the orchestrator hand over the full context each time instead
+     * of assuming the agent remembers the previous round.
+     */
+    resume: "reinvoke",
+    sandbox: "caller",
+    budgetable: false
+  },
+  invoke({ prompt, systemPrompt, model, isolated, extraArgs }) {
+    const args = ["exec", "--json"];
+    if (model) args.push("--model", model);
+    args.push("--sandbox", isolated ? "workspace-write" : "read-only");
+    if (extraArgs?.length) args.push(...extraArgs);
+    args.push(`${systemPrompt}
+
+---
+
+${prompt}`);
+    return { args };
+  },
+  /*
+   * Read-only, one shot.
+   *
+   * `--sandbox read-only` is the same flag `invoke` uses when nothing was isolated, so this is
+   * not a new capability being claimed — it is the existing one, without the write half.
+   */
+  askOnly({ prompt, model }) {
+    const args = ["exec", "--json", "--sandbox", "read-only"];
+    if (model) args.push("--model", model);
+    args.push(prompt);
+    return { args };
+  },
+  parse(stdout, stderr, exitCode) {
+    let lastMessage = "";
+    let sawError = false;
+    const usage = {};
+    for (const line of stdout.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("{")) continue;
+      try {
+        const event = JSON.parse(trimmed);
+        const type = String(event["type"] ?? event["msg"] ?? "");
+        if (type.includes("agent_message") || type === "message") {
+          const message = event["message"] ?? event["text"] ?? event["content"];
+          if (typeof message === "string") lastMessage = message;
+        }
+        if (type.includes("error")) sawError = true;
+        const tokens = event["token_usage"] ?? event["usage"];
+        if (tokens && typeof tokens === "object") {
+          const t = tokens;
+          if (typeof t["input_tokens"] === "number") usage.inputTokens = t["input_tokens"];
+          if (typeof t["output_tokens"] === "number") usage.outputTokens = t["output_tokens"];
+        }
+      } catch {
+      }
+    }
+    if (lastMessage) {
+      return {
+        text: lastMessage,
+        ...Object.keys(usage).length ? { usage } : {},
+        ...sawError ? { isError: true } : {}
+      };
+    }
+    const json = extractJson(stdout);
+    if (json) {
+      const text = typeof json["last_agent_message"] === "string" && json["last_agent_message"] || typeof json["result"] === "string" && json["result"] || "";
+      if (text) return { text, ...json["error"] ? { isError: true } : {} };
+    }
+    if (exitCode === 0 && stdout.trim()) return { text: stdout.trim() };
+    if (exitCode !== 0 && stderr.trim()) return { text: stderr.trim(), isError: true };
+    return null;
+  }
+};
+var CodexAgent = class extends CliAgent {
+  constructor(opts = {}) {
+    const spec = opts.sandbox ? {
+      ...CODEX_SPEC,
+      invoke: (input) => {
+        const built = CODEX_SPEC.invoke(input);
+        const args = [...built.args];
+        const at = args.indexOf("--sandbox");
+        if (at >= 0) args[at + 1] = opts.sandbox;
+        return { ...built, args };
+      }
+    } : CODEX_SPEC;
+    super(spec, opts);
+  }
+};
+function codexAgent(opts = {}) {
+  return new CodexAgent(opts);
+}
+
 // packages/council/src/static.ts
 var PATH_LIKE = /(?:^|[\s`'"(])((?:[\w.-]+\/){1,}[\w.-]+\.[a-z]{1,5})(?=[\s`'".,;:)]|$)/gi;
 var POSITIVE = /\b(?:always|must|should|prefer|use)\b/i;
@@ -18294,7 +18396,8 @@ async function advise(root) {
     hadFileList: tracked !== null,
     checked: countOf(loaded.model),
     targets: loaded.config.targets,
-    sampleFiles: (tracked ?? []).slice(0, 40)
+    sampleFiles: (tracked ?? []).slice(0, 40),
+    ...loaded.config.agent ? { agent: loaded.config.agent } : {}
   };
 }
 function renderAdvice(findings) {
@@ -18308,11 +18411,23 @@ function renderAdvice(findings) {
     }
   }
 }
-function judgeFor(model) {
+var JUDGES = {
+  claude: CLAUDE_SPEC,
+  codex: CODEX_SPEC
+};
+function judgeFor(agent, model) {
+  const name = agent ?? "claude";
+  const spec = JUDGES[name];
+  if (!spec) {
+    throw new Error(
+      `${name} cannot be asked a question \u2014 it ${name === "copilot" ? "takes work and opens pull requests, and has no interface that answers one" : "has no way to run without also being allowed to edit files"}.
+Pass --agent with one of: ${Object.keys(JUDGES).join(", ")}, if you want to use a different agent for this.`
+    );
+  }
   return {
-    id: CLAUDE_SPEC.id,
+    id: spec.id,
     async ask(prompt) {
-      const out = await askOnce(CLAUDE_SPEC, { prompt, ...model ? { model } : {} });
+      const out = await askOnce(spec, { prompt, ...model ? { model } : {} });
       if (!out.ok) throw new Error(out.reason);
       return out.text;
     }
@@ -18337,8 +18452,8 @@ async function adviseCommand(args) {
   const root = flagString(args, "root") ?? process.cwd();
   const json = flagBool(args, "json");
   const depth = parseDepth(flagString(args, "depth"));
-  const { findings: staticFindings, hadFileList, checked, targets, sampleFiles } = await advise(root);
-  const findings = depth === "static" ? staticFindings : await withJudge(staticFindings, (await loadContext({ root })).model, judgeFor(flagString(args, "model")), {
+  const { findings: staticFindings, hadFileList, checked, targets, sampleFiles, agent } = await advise(root);
+  const findings = depth === "static" ? staticFindings : await withJudge(staticFindings, (await loadContext({ root })).model, judgeFor(flagString(args, "agent") ?? agent, flagString(args, "model")), {
     depth,
     context: { targets, sampleFiles }
   });
@@ -20564,96 +20679,6 @@ var CursorAgent = class extends CliAgent {
 };
 function cursorAgent(opts = {}) {
   return new CursorAgent(opts);
-}
-
-// packages/agent-codex/src/index.ts
-var CODEX_SPEC = {
-  id: "codex",
-  displayName: "Codex",
-  bin: "codex",
-  confidence: "unverified",
-  capabilities: {
-    promptControl: "full",
-    /*
-     * `codex exec` is a batch invocation rather than a resumable conversation, so a revision
-     * round re-invokes with the feedback rather than continuing a session. Declaring
-     * `reinvoke` is what makes the orchestrator hand over the full context each time instead
-     * of assuming the agent remembers the previous round.
-     */
-    resume: "reinvoke",
-    sandbox: "caller",
-    budgetable: false
-  },
-  invoke({ prompt, systemPrompt, model, isolated, extraArgs }) {
-    const args = ["exec", "--json"];
-    if (model) args.push("--model", model);
-    args.push("--sandbox", isolated ? "workspace-write" : "read-only");
-    if (extraArgs?.length) args.push(...extraArgs);
-    args.push(`${systemPrompt}
-
----
-
-${prompt}`);
-    return { args };
-  },
-  parse(stdout, stderr, exitCode) {
-    let lastMessage = "";
-    let sawError = false;
-    const usage = {};
-    for (const line of stdout.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("{")) continue;
-      try {
-        const event = JSON.parse(trimmed);
-        const type = String(event["type"] ?? event["msg"] ?? "");
-        if (type.includes("agent_message") || type === "message") {
-          const message = event["message"] ?? event["text"] ?? event["content"];
-          if (typeof message === "string") lastMessage = message;
-        }
-        if (type.includes("error")) sawError = true;
-        const tokens = event["token_usage"] ?? event["usage"];
-        if (tokens && typeof tokens === "object") {
-          const t = tokens;
-          if (typeof t["input_tokens"] === "number") usage.inputTokens = t["input_tokens"];
-          if (typeof t["output_tokens"] === "number") usage.outputTokens = t["output_tokens"];
-        }
-      } catch {
-      }
-    }
-    if (lastMessage) {
-      return {
-        text: lastMessage,
-        ...Object.keys(usage).length ? { usage } : {},
-        ...sawError ? { isError: true } : {}
-      };
-    }
-    const json = extractJson(stdout);
-    if (json) {
-      const text = typeof json["last_agent_message"] === "string" && json["last_agent_message"] || typeof json["result"] === "string" && json["result"] || "";
-      if (text) return { text, ...json["error"] ? { isError: true } : {} };
-    }
-    if (exitCode === 0 && stdout.trim()) return { text: stdout.trim() };
-    if (exitCode !== 0 && stderr.trim()) return { text: stderr.trim(), isError: true };
-    return null;
-  }
-};
-var CodexAgent = class extends CliAgent {
-  constructor(opts = {}) {
-    const spec = opts.sandbox ? {
-      ...CODEX_SPEC,
-      invoke: (input) => {
-        const built = CODEX_SPEC.invoke(input);
-        const args = [...built.args];
-        const at = args.indexOf("--sandbox");
-        if (at >= 0) args[at + 1] = opts.sandbox;
-        return { ...built, args };
-      }
-    } : CODEX_SPEC;
-    super(spec, opts);
-  }
-};
-function codexAgent(opts = {}) {
-  return new CodexAgent(opts);
 }
 
 // packages/agent-local/src/index.ts
@@ -24214,6 +24239,7 @@ async function addCommand(args) {
 init_src();
 import { promises as fs22 } from "node:fs";
 import * as path24 from "node:path";
+init_src();
 async function proposeCommand(args) {
   const root = flagString(args, "root") ?? process.cwd();
   const write = flagBool(args, "write");
@@ -24236,7 +24262,7 @@ async function proposeCommand(args) {
       isMonorepo: profile.isMonorepo,
       sampleFiles: (tracked ?? []).slice(0, 40)
     },
-    judgeFor(flagString(args, "model")),
+    judgeFor(flagString(args, "agent") ?? (await loadConfig(root).catch(() => ({ agent: void 0 }))).agent, flagString(args, "model")),
     { limit }
   );
   if (json) {

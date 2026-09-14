@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { writeFileAtomic } from '@contextmux/context'
 import { generate, type Proposal } from '@contextmux/council'
+import { loadConfig } from '@contextmux/context'
 import { detectProfile, listTrackedFiles } from '@contextmux/repo'
 import { bullet, c, heading, info, success, warn } from '../ui.js'
 import { flagBool, flagString, type ParsedArgs } from '../args.js'
@@ -40,7 +41,7 @@ export async function proposeCommand(args: ParsedArgs): Promise<number> {
       isMonorepo: profile.isMonorepo,
       sampleFiles: (tracked ?? []).slice(0, 40),
     },
-    judgeFor(flagString(args, 'model')),
+    judgeFor(flagString(args, 'agent') ?? (await loadConfig(root).catch(() => ({ agent: undefined }))).agent, flagString(args, 'model')),
     { limit },
   )
 

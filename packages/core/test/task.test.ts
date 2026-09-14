@@ -6,7 +6,7 @@
  * imagination — the shapes people write, not the shape the parser wished for.
  */
 import { describe, expect, it } from 'vitest'
-import { extractAcceptanceCriteria } from '../src/task.js'
+import { extractAcceptanceCriteria, bodyWithoutCriteria } from '../src/task.js'
 
 describe('a bug report states its criterion as an expectation', () => {
   const reported = [
@@ -91,5 +91,54 @@ describe('what the section contains', () => {
 
   it('finds nothing in a ticket that says nothing', () => {
     expect(extractAcceptanceCriteria('Just a title and some rambling prose.')).toEqual([])
+  })
+})
+
+/**
+ * Keeping the criteria out of the body.
+ *
+ * They are extracted and restated under a heading, so leaving them in the body prints them
+ * twice. On a real Jira ticket that was fifty duplicated lines in an artefact that has to fit
+ * a GitHub issue body.
+ */
+describe('bodyWithoutCriteria', () => {
+  const body = [
+    'Background:',
+    '',
+    'When an Analyst navigates away, a dialog appears.',
+    '',
+    'Acceptance criteria:',
+    '',
+    '- Ignore is replaced with Save.',
+    '- No team setup event is created.',
+    '',
+  ].join('\n')
+
+  it('drops the criteria section', () => {
+    const out = bodyWithoutCriteria(body)
+
+    expect(out).not.toContain('Ignore is replaced with Save')
+    expect(out).not.toContain('Acceptance criteria')
+  })
+
+  it('keeps the background, which is what makes the criteria mean anything', () => {
+    expect(bodyWithoutCriteria(body)).toContain('When an Analyst navigates away')
+  })
+
+  it('keeps a section that comes after the criteria', () => {
+    const withTail = `${body}\nNotes:\n\nApplies to all tiers.\n`
+    const out = bodyWithoutCriteria(withTail)
+
+    expect(out).toContain('Applies to all tiers')
+    expect(out).not.toContain('Ignore is replaced with Save')
+  })
+
+  it('leaves a body alone when it has no criteria section', () => {
+    const plain = 'Just a description, with no headings at all.'
+    expect(bodyWithoutCriteria(plain)).toBe(plain)
+  })
+
+  it('does not leave a hole where the section was', () => {
+    expect(bodyWithoutCriteria(body)).not.toMatch(/\n\n\n/)
   })
 })

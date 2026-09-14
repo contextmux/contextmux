@@ -154,6 +154,32 @@ function normaliseLabel(text: string): string {
  * one plain sentence — the ordinary way to state an expectation — yielded nothing and the
  * readiness gate reported a ticket with no criteria at all.
  */
+/**
+ * The body with its acceptance-criteria section removed.
+ *
+ * The criteria are extracted and restated under a heading of their own, so leaving them in the
+ * body prints them twice. On a real ticket that was fifty duplicated lines in an artefact with
+ * a 65,536-character ceiling — paid for on the way in, and read twice by whoever gets it.
+ *
+ * Only the section is dropped. Everything before and after it is background, and background is
+ * what makes the criteria mean anything.
+ */
+export function bodyWithoutCriteria(body: string): string {
+  const lines = body.split('\n')
+  const kept: string[] = []
+  let inSection = false
+
+  for (const line of lines) {
+    const label = sectionLabel(line)
+    if (label !== null) {
+      inSection = CRITERIA_SECTION.test(label)
+      if (inSection) continue
+    }
+    if (!inSection) kept.push(line)
+  }
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 export function extractAcceptanceCriteria(body: string): string[] {
   const lines = body.split('\n')
   const items: string[] = []

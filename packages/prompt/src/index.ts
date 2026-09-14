@@ -10,6 +10,7 @@
  * unrelated guidance costs tokens and dilutes attention.
  */
 import type { Feedback, TaskSpec } from '@contextmux/core'
+import { bodyWithoutCriteria } from '@contextmux/core'
 import type { ContextModel, Rule, Skill } from '@contextmux/context'
 import { globsOverlap } from '@contextmux/core'
 import { buildMap, type RepoIndex } from '@contextmux/repo'
@@ -157,7 +158,8 @@ export function renderPrompt(opts: PromptOptions): string {
     [
       `# Task: ${task.title}`,
       '',
-      task.body,
+      // Without its criteria section, which is restated below in a form worth reading twice.
+      task.acceptanceCriteria.length ? bodyWithoutCriteria(task.body) : task.body,
       ...(task.acceptanceCriteria.length
         ? [
             '',
@@ -304,6 +306,18 @@ export function renderPrompt(opts: PromptOptions): string {
         map.text.trim(),
         '',
         /*
+         * No "start here" list is offered, and that is a decision rather than an omission.
+         *
+         * One was added and removed the same day. Measured against a real ticket, the six
+         * highest-ranked files contained none of the four the work actually touched — the main
+         * one ranked twenty-seventh — because the ranking is name and path overlap rather than
+         * understanding, and "lineup" matches a file full of throw-in validation. A confident
+         * pointer at the wrong six is worse than leaving the agent to look: it can be believed.
+         *
+         * The map itself stays. Ranked leads are useful when read as leads. Telling somebody to
+         * start at the top of them is what the ranking cannot support.
+         */
+        /*
          * Decide what to read, then read it once.
          *
          * Observed on a real run: one file was opened eleven times in overlapping line ranges
@@ -311,24 +325,6 @@ export function renderPrompt(opts: PromptOptions): string {
          * read a little more. Seventeen reads of two files, each one paid for. Naming the set
          * up front costs one sentence and replaces the hunt with a list.
          */
-        ...(task.scope.allow.length === 0 && map.files.length > 0
-          ? [
-              /*
-               * A starting point when nobody gave one.
-               *
-               * The map is already ranked against the task, so the top of it is the best guess
-               * available without asking anybody to think about globs. Offered as a place to
-               * begin rather than a boundary: an inferred scope that is wrong must not stop
-               * correct work, so nothing gates on this — only `--allow` does.
-               */
-              `Most likely relevant, by the ranking above: ${map.files
-                .slice(0, 6)
-                .map((f) => `\`${f.path}\``)
-                .join(', ')}.`,
-              'Start there. Look wider only if what you find sends you somewhere else.',
-              '',
-            ]
-          : []),
         'Before reading anything, decide which files you need and say so. Then open each one',
         'once, in full. Re-opening a file you have already read, or reading it in overlapping',
         'pieces, costs as much as reading it the first time and tells you nothing new — if you',

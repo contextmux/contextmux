@@ -410,43 +410,72 @@ describe('keeping the reading down', () => {
       scope: { allow: [], deny: [] },
     }) as TaskSpec
 
-  it('offers a starting point when nobody scoped the task', () => {
-    const task = lineupTask()
-    const out = renderPrompt({ task, index })
+  it('offers no ranked starting point, which the ranking cannot support', () => {
+    // Measured on a real ticket: the top six contained none of the four files the work
+    // touched. A pointer that confident, that wrong, is worse than none.
+    const out = renderPrompt({ task: lineupTask(), index })
 
-    expect(out).toContain('Most likely relevant')
-    expect(out).toContain('Start there')
-  })
-
-  it('does not guess when the task was scoped, since the scope is already stated', () => {
-    const task = { ...fakeTask(), scope: { allow: ['src/lineup/**'], deny: [] } } as TaskSpec
-    const out = renderPrompt({ task, index })
-
-    expect(out).toContain('You may modify only')
     expect(out).not.toContain('Most likely relevant')
-  })
-
-  it('offers the starting point as a place to begin, not a boundary', () => {
-    const task = lineupTask()
-    const out = renderPrompt({ task, index })
-
-    // An inferred scope that is wrong must not stop correct work. Only --allow gates.
-    expect(out).toContain('Look wider only if')
-    expect(out).not.toContain('You may modify only')
+    expect(out).not.toContain('Start there')
   })
 
   it('says nothing about reading when there is no map to read from', () => {
     const out = renderPrompt({ task: lineupTask() })
 
-    expect(out).not.toContain('Most likely relevant')
     expect(out).not.toContain('decide which files you need')
   })
 
-  it('suggests nothing when the map found nothing worth suggesting', () => {
-    // A task with no overlap ranks no files, and a guess drawn from an empty ranking would be
-    // worse than staying quiet.
-    const out = renderPrompt({ task: fakeTask(), index })
+})
 
-    expect(out).not.toContain('Most likely relevant')
+/**
+ * Saying the criteria once.
+ *
+ * A Jira description carries its own "Acceptance criteria:" section, and contextmux extracts
+ * that section and restates it under a heading of its own. Printed as it arrived, the artefact
+ * carries both — fifty duplicated lines on a real ticket, in a body with a 65,536 ceiling.
+ */
+describe('the task body', () => {
+  const ticket = () =>
+    ({
+      ...fakeTask(),
+      title: 'Save partial lineup changes',
+      body: [
+        'Background:',
+        '',
+        'Navigating away discards partial work.',
+        '',
+        'Acceptance criteria:',
+        '',
+        '- Ignore is replaced with Save.',
+        '- No team setup event is created.',
+      ].join('\n'),
+      acceptanceCriteria: [
+        { text: 'Ignore is replaced with Save.' },
+        { text: 'No team setup event is created.' },
+      ],
+    }) as TaskSpec
+
+  it('states each criterion once, not once per place it appears', () => {
+    const out = renderPrompt({ task: ticket() })
+    const occurrences = out.split('Ignore is replaced with Save.').length - 1
+
+    expect(occurrences).toBe(1)
+  })
+
+  it('keeps the background that gives the criteria their meaning', () => {
+    expect(renderPrompt({ task: ticket() })).toContain('Navigating away discards partial work')
+  })
+
+  it('still restates them under a heading worth reading', () => {
+    const out = renderPrompt({ task: ticket() })
+
+    expect(out).toContain('## Acceptance criteria')
+    expect(out).toContain('Every one of these must be true')
+  })
+
+  it('leaves a body alone when nothing was extracted from it', () => {
+    const task = { ...fakeTask(), body: 'A plain description.', acceptanceCriteria: [] } as TaskSpec
+
+    expect(renderPrompt({ task })).toContain('A plain description.')
   })
 })

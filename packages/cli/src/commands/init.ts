@@ -46,6 +46,36 @@ function detectTracker(): string {
   return 'file'
 }
 
+/**
+ * Secrets and variables already configured on the repository.
+ *
+ * Best effort through `gh`, which most people setting this up already have. Returns an empty
+ * set when it is missing or not logged in — and the caller must treat that as "unknown" rather
+ * than "unset", because telling somebody to set a secret they set last week is how a checklist
+ * stops being read.
+ */
+async function configuredNames(root: string): Promise<Set<string>> {
+  const read = (args: string[]): Promise<string> =>
+    new Promise((resolve) => {
+      const child = spawn('gh', args, { cwd: root, windowsHide: true })
+      let out = ''
+      child.stdout.on('data', (d) => (out += d))
+      child.on('error', () => resolve(''))
+      child.on('close', (code) => resolve(code === 0 ? out : ''))
+    })
+
+  const [secrets, variables] = await Promise.all([
+    read(['secret', 'list', '--json', 'name', '-q', '.[].name']),
+    read(['variable', 'list', '--json', 'name', '-q', '.[].name']),
+  ])
+  return new Set(
+    `${secrets}\n${variables}`
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean),
+  )
+}
+
 /** Whether there is a remote to run a workflow against. Without one there is nothing to scaffold. */
 function hasGitRemote(root: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -243,6 +273,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   const ctx = {
     profile,
     tracker,
+    agent,
     hasRemote: await hasGitRemote(root),
   }
 
@@ -289,9 +320,25 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   }
 
   if (workflows.length > 0) {
+    const configured = await configuredNames(root)
+    const steps = remainingSetup(ctx, configured)
+    const outstanding = steps.filter((s) => s.done !== true)
+
     info('')
-    warn('Before the workflow can run:')
-    for (const item of remainingSetup(ctx)) bullet(item)
+    if (outstanding.length === 0) {
+      success('Everything the workflow needs is already set.')
+    } else {
+      warn('Before the workflow can run:')
+      for (const step of outstanding) {
+        info('')
+        bullet(step.what)
+        info('    ' + c.bold(step.how))
+      }
+      if (configured.size > 0 && outstanding.length < steps.length) {
+        info('')
+        info(c.dim(`${steps.length - outstanding.length} already set, not shown.`))
+      }
+    }
   }
 
   /*

@@ -18607,11 +18607,6 @@ function header(name) {
     `# Settings -> Secrets and variables -> Actions -> Variables.`
   ].join("\n");
 }
-function secretsFor(tracker) {
-  const secrets = ["CTXMUX_TOKEN"];
-  if (tracker === "jira") secrets.push("JIRA_URL", "JIRA_EMAIL", "JIRA_API_TOKEN");
-  return secrets;
-}
 function runWorkflow(ctx) {
   const allow = allowGlobs(ctx.profile).join(",");
   const jira = ctx.tracker === "jira";
@@ -18720,11 +18715,51 @@ function workflowFiles(ctx) {
     { path: ".github/workflows/ctxmux-review.yml", content: reviewWorkflow(ctx) }
   ];
 }
-function remainingSetup(ctx) {
-  const todo = secretsFor(ctx.tracker).map((s) => `${s} is not set as a repository secret`);
-  todo.push("the Copilot coding agent is not enabled on this repository");
-  todo.push("CTXMUX_ENABLED is unset, so nothing runs \u2014 set it to 'true' when you are ready");
-  return todo;
+function remainingSetup(ctx, known = /* @__PURE__ */ new Set()) {
+  const steps = [
+    {
+      what: "CTXMUX_TOKEN \u2014 a GitHub token contextmux uses to open pull requests, comment, and push run state. It cannot be the built-in GITHUB_TOKEN: GitHub refuses to start a workflow from an event that token created, so the review half of the loop would never fire.",
+      how: "gh secret set CTXMUX_TOKEN    # a fine-grained PAT with contents, issues and pull-requests write",
+      done: known.has("CTXMUX_TOKEN")
+    }
+  ];
+  if (ctx.tracker === "jira") {
+    steps.push(
+      {
+        what: "JIRA_URL \u2014 your Atlassian site, like https://acme.atlassian.net. Not secret.",
+        how: 'gh variable set JIRA_URL --body "https://acme.atlassian.net"',
+        done: known.has("JIRA_URL")
+      },
+      {
+        what: "JIRA_EMAIL \u2014 the account the API token belongs to.",
+        how: "gh secret set JIRA_EMAIL",
+        done: known.has("JIRA_EMAIL")
+      },
+      {
+        what: "JIRA_API_TOKEN \u2014 from id.atlassian.com under Security. It carries everything your Jira account can reach, so a service account is safer than your own.",
+        how: "gh secret set JIRA_API_TOKEN",
+        done: known.has("JIRA_API_TOKEN")
+      }
+    );
+  }
+  if (ctx.agent === "copilot") {
+    steps.push({
+      what: "The Copilot coding agent has to be enabled on this repository before it can be given work.",
+      how: "Repository settings, under Copilot. There is no command for this one."
+    });
+  } else if (ctx.agent && ctx.agent !== "local") {
+    steps.push({
+      what: `ANTHROPIC_API_KEY \u2014 credentials for ${ctx.agent}, which runs on the runner rather than in a vendor's cloud.`,
+      how: "gh secret set ANTHROPIC_API_KEY",
+      done: known.has("ANTHROPIC_API_KEY")
+    });
+  }
+  steps.push({
+    what: "CTXMUX_ENABLED \u2014 the kill switch. Every scaffolded workflow checks it, so nothing runs until it is true.",
+    how: "gh variable set CTXMUX_ENABLED --body true",
+    done: known.has("CTXMUX_ENABLED")
+  });
+  return steps;
 }
 
 // packages/cli/src/commands/init.ts
@@ -18749,6 +18784,23 @@ function detectTracker() {
   if (process.env["JIRA_URL"]?.trim()) return "jira";
   if (process.env["GITHUB_REPOSITORY"]?.trim() || process.env["CTXMUX_REPO"]?.trim()) return "github";
   return "file";
+}
+async function configuredNames(root) {
+  const read2 = (args) => new Promise((resolve17) => {
+    const child = spawn("gh", args, { cwd: root, windowsHide: true });
+    let out = "";
+    child.stdout.on("data", (d) => out += d);
+    child.on("error", () => resolve17(""));
+    child.on("close", (code) => resolve17(code === 0 ? out : ""));
+  });
+  const [secrets, variables] = await Promise.all([
+    read2(["secret", "list", "--json", "name", "-q", ".[].name"]),
+    read2(["variable", "list", "--json", "name", "-q", ".[].name"])
+  ]);
+  return new Set(
+    `${secrets}
+${variables}`.split("\n").map((l) => l.trim()).filter(Boolean)
+  );
 }
 function hasGitRemote(root) {
   return new Promise((resolve17) => {
@@ -18866,6 +18918,7 @@ async function initCommand(args) {
   const ctx = {
     profile,
     tracker,
+    agent,
     hasRemote: await hasGitRemote(root)
   };
   const workflows = [];
@@ -18898,9 +18951,24 @@ async function initCommand(args) {
     info("    " + c.dim("Move those edits into .ctxmux/ so they survive, or re-run sync with --force."));
   }
   if (workflows.length > 0) {
+    const configured = await configuredNames(root);
+    const steps = remainingSetup(ctx, configured);
+    const outstanding = steps.filter((s) => s.done !== true);
     info("");
-    warn("Before the workflow can run:");
-    for (const item of remainingSetup(ctx)) bullet(item);
+    if (outstanding.length === 0) {
+      success("Everything the workflow needs is already set.");
+    } else {
+      warn("Before the workflow can run:");
+      for (const step of outstanding) {
+        info("");
+        bullet(step.what);
+        info("    " + c.bold(step.how));
+      }
+      if (configured.size > 0 && outstanding.length < steps.length) {
+        info("");
+        info(c.dim(`${steps.length - outstanding.length} already set, not shown.`));
+      }
+    }
   }
   await reviewWhatIsThere(root, wantAdvice);
   info("");

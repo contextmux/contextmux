@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { initCommand } from '../src/commands/init.js'
+import { remainingSetup } from '../src/workflows.js'
 import {
   argv,
   exists,
@@ -418,5 +419,91 @@ describe('init --advise', () => {
     const { code } = await runCli(initCommand, argv(root, 'init --advise'))
 
     expect(code).toBe(0)
+  })
+})
+
+/**
+ * The list of what still has to be done before a workflow can run.
+ *
+ * The first place most people meet any of these names, so a bare `CTXMUX_TOKEN is not set`
+ * leaves them with a string and no next step.
+ */
+describe('before the workflow can run', () => {
+  it('says what each thing is, not just what it is called', () => {
+    const steps = remainingSetup({ tracker: 'jira', hasRemote: true } as never)
+    const token = steps.find((s) => s.what.startsWith('CTXMUX_TOKEN'))
+
+    expect(token?.what).toContain('open pull requests')
+    expect(token?.what).toContain('cannot be the built-in GITHUB_TOKEN')
+  })
+
+  it('gives a command that sets it', () => {
+    const steps = remainingSetup({ tracker: 'jira', hasRemote: true } as never)
+
+    for (const step of steps) expect(step.how.length).toBeGreaterThan(10)
+    expect(steps.find((s) => s.what.startsWith('CTXMUX_ENABLED'))?.how).toContain('gh variable set')
+  })
+
+  it('asks for the Jira credentials only when the tracker is Jira', () => {
+    const jira = remainingSetup({ tracker: 'jira', hasRemote: true } as never)
+    const file = remainingSetup({ tracker: 'file', hasRemote: true } as never)
+
+    expect(jira.some((s) => s.what.startsWith('JIRA_API_TOKEN'))).toBe(true)
+    expect(file.some((s) => s.what.startsWith('JIRA'))).toBe(false)
+  })
+
+  it('treats the Jira site as a variable rather than a secret', () => {
+    const steps = remainingSetup({ tracker: 'jira', hasRemote: true } as never)
+    const url = steps.find((s) => s.what.startsWith('JIRA_URL'))
+
+    // Readable in logs and the UI, which is what makes a wrong one findable.
+    expect(url?.how).toContain('gh variable set')
+    expect(url?.what).toContain('Not secret')
+  })
+
+  it('marks what is already configured instead of asserting it is missing', () => {
+    const steps = remainingSetup(
+      { tracker: 'jira', hasRemote: true } as never,
+      new Set(['CTXMUX_TOKEN', 'JIRA_URL']),
+    )
+
+    expect(steps.find((s) => s.what.startsWith('CTXMUX_TOKEN'))?.done).toBe(true)
+    expect(steps.find((s) => s.what.startsWith('JIRA_EMAIL'))?.done).toBe(false)
+  })
+
+  it('asks to enable Copilot only when Copilot is the agent', () => {
+    const copilot = remainingSetup({ tracker: 'file', hasRemote: true, agent: 'copilot' } as never)
+    const claude = remainingSetup({ tracker: 'file', hasRemote: true, agent: 'claude' } as never)
+
+    expect(copilot.some((s) => s.what.includes('Copilot coding agent'))).toBe(true)
+    expect(claude.some((s) => s.what.includes('Copilot coding agent'))).toBe(false)
+  })
+
+  it('asks for agent credentials when the agent runs on the runner', () => {
+    const claude = remainingSetup({ tracker: 'file', hasRemote: true, agent: 'claude' } as never)
+    const copilot = remainingSetup({ tracker: 'file', hasRemote: true, agent: 'copilot' } as never)
+
+    // Copilot brings its own environment; a driven agent does not.
+    expect(claude.some((s) => s.what.startsWith('ANTHROPIC_API_KEY'))).toBe(true)
+    expect(copilot.some((s) => s.what.startsWith('ANTHROPIC_API_KEY'))).toBe(false)
+  })
+
+  it('asks for no credentials at all for a locally hosted model', () => {
+    const local = remainingSetup({ tracker: 'file', hasRemote: true, agent: 'local' } as never)
+
+    expect(local.some((s) => s.what.startsWith('ANTHROPIC_API_KEY'))).toBe(false)
+    expect(local.some((s) => s.what.includes('Copilot coding agent'))).toBe(false)
+  })
+
+  it('claims nothing about the step it cannot check', () => {
+    const steps = remainingSetup(
+      { tracker: 'file', hasRemote: true, agent: 'copilot' } as never,
+      new Set(['CTXMUX_TOKEN']),
+    )
+    const copilot = steps.find((s) => s.what.includes('Copilot coding agent'))
+
+    // There is no API for this one, so `done` stays undefined rather than guessing false.
+    expect(copilot?.done).toBeUndefined()
+    expect(copilot?.how).toContain('no command')
   })
 })

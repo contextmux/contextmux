@@ -35,6 +35,8 @@ export interface WorkflowContext {
   tracker: string
   /** Whether a git remote exists — without one there is nothing to scaffold for. */
   hasRemote: boolean
+  /** Which agent will run tasks: claude, copilot, cursor, codex or local. */
+  agent?: string
 }
 
 /**
@@ -185,10 +187,81 @@ export function workflowFiles(ctx: WorkflowContext): WorkflowFile[] {
   ]
 }
 
-/** What still has to be true before a scaffolded workflow can do anything. */
-export function remainingSetup(ctx: WorkflowContext): string[] {
-  const todo = secretsFor(ctx.tracker).map((s) => `${s} is not set as a repository secret`)
-  todo.push('the Copilot coding agent is not enabled on this repository')
-  todo.push("CTXMUX_ENABLED is unset, so nothing runs — set it to 'true' when you are ready")
-  return todo
+/** One thing that has to be true before a scaffolded workflow can do anything. */
+export interface SetupStep {
+  /** What it is, in a sentence, for somebody who has not seen the name before. */
+  what: string
+  /** The command that sets it, or instructions when there is no command. */
+  how: string
+  /** Whether it is already done. Undefined when it could not be checked. */
+  done?: boolean
+}
+
+/**
+ * What still has to be true before a scaffolded workflow can do anything.
+ *
+ * Each step says what the thing is and how to set it. A list of bare names — `CTXMUX_TOKEN is
+ * not set` — tells somebody who has never seen that name nothing they can act on, and this list
+ * is the first time most people meet any of them.
+ *
+ * It also used to assert "is not set" without looking, which was wrong every time somebody had
+ * already set it. Now it checks where it can and says nothing it has not verified.
+ */
+export function remainingSetup(ctx: WorkflowContext, known: Set<string> = new Set()): SetupStep[] {
+  const steps: SetupStep[] = [
+    {
+      what:
+        'CTXMUX_TOKEN — a GitHub token contextmux uses to open pull requests, comment, and push ' +
+        'run state. It cannot be the built-in GITHUB_TOKEN: GitHub refuses to start a workflow ' +
+        'from an event that token created, so the review half of the loop would never fire.',
+      how: 'gh secret set CTXMUX_TOKEN    # a fine-grained PAT with contents, issues and pull-requests write',
+      done: known.has('CTXMUX_TOKEN'),
+    },
+  ]
+
+  if (ctx.tracker === 'jira') {
+    steps.push(
+      {
+        what: 'JIRA_URL — your Atlassian site, like https://acme.atlassian.net. Not secret.',
+        how: 'gh variable set JIRA_URL --body "https://acme.atlassian.net"',
+        done: known.has('JIRA_URL'),
+      },
+      {
+        what: 'JIRA_EMAIL — the account the API token belongs to.',
+        how: 'gh secret set JIRA_EMAIL',
+        done: known.has('JIRA_EMAIL'),
+      },
+      {
+        what:
+          'JIRA_API_TOKEN — from id.atlassian.com under Security. It carries everything your ' +
+          'Jira account can reach, so a service account is safer than your own.',
+        how: 'gh secret set JIRA_API_TOKEN',
+        done: known.has('JIRA_API_TOKEN'),
+      },
+    )
+  }
+
+  // Only what this repository's agent actually needs. Telling somebody running Claude to enable
+  // Copilot is noise in a list they are reading precisely because they do not yet know which
+  // parts apply to them.
+  if (ctx.agent === 'copilot') {
+    steps.push({
+      what: 'The Copilot coding agent has to be enabled on this repository before it can be given work.',
+      how: 'Repository settings, under Copilot. There is no command for this one.',
+    })
+  } else if (ctx.agent && ctx.agent !== 'local') {
+    steps.push({
+      what: `ANTHROPIC_API_KEY — credentials for ${ctx.agent}, which runs on the runner rather than in a vendor's cloud.`,
+      how: 'gh secret set ANTHROPIC_API_KEY',
+      done: known.has('ANTHROPIC_API_KEY'),
+    })
+  }
+
+  steps.push({
+    what: 'CTXMUX_ENABLED — the kill switch. Every scaffolded workflow checks it, so nothing runs until it is true.',
+    how: 'gh variable set CTXMUX_ENABLED --body true',
+    done: known.has('CTXMUX_ENABLED'),
+  })
+
+  return steps
 }

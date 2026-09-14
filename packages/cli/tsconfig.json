@@ -64,6 +64,9 @@
     },
     {
       "path": "../agent-local"
+    },
+    {
+      "path": "../prompt"
     }
   ]
 }

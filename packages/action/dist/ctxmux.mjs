@@ -17211,7 +17211,7 @@ function fingerprint(feedback) {
   return createHash6("sha256").update(text).digest("base64url").slice(0, 22);
 }
 
-// packages/agent-claude/src/prompt.ts
+// packages/prompt/src/index.ts
 function terms(text) {
   return new Set(
     text.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 3)

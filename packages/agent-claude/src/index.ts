@@ -15,8 +15,15 @@ import {
   type StreamEvent,
 } from '@contextmux/agent-cli'
 
-export { renderPrompt } from './prompt.js'
-export type { PromptOptions } from './prompt.js'
+/*
+ * Re-exported, not owned.
+ *
+ * Prompt assembly moved to `@contextmux/prompt` because it was never Claude's: the delegated
+ * branch inside it is Copilot's, and three commands imported it from here. Kept exported so a
+ * published 0.3.0 that imports it from this package keeps working.
+ */
+export { renderPrompt } from '@contextmux/prompt'
+export type { PromptOptions } from '@contextmux/prompt'
 
 export type ClaudePermissionMode = 'acceptEdits' | 'bypassPermissions' | 'auto' | 'manual'
 

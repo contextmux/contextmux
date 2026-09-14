@@ -22,6 +22,9 @@
     },
     {
       "path": "../agent-cli"
+    },
+    {
+      "path": "../prompt"
     }
   ]
 }

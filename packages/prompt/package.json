@@ -1,7 +1,7 @@
 {
-  "name": "@contextmux/agent-claude",
+  "name": "@contextmux/prompt",
   "version": "0.3.0",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides driven Claude Code agent adapter for contextmux.",
+  "description": "Internal to contextmux — install `contextmux` instead. Assembles the prompt an agent is given, for every agent rather than any one of them.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,12 +24,9 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@contextmux/agent-cli": "workspace:*",
     "@contextmux/context": "workspace:*",
     "@contextmux/core": "workspace:*",
-    "@contextmux/prompt": "workspace:*",
-    "@contextmux/repo": "workspace:*",
-    "@contextmux/runner-local": "workspace:*"
+    "@contextmux/repo": "workspace:*"
   },
   "publishConfig": {
     "access": "public"
@@ -37,7 +34,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/contextmux/contextmux.git",
-    "directory": "packages/agent-claude"
+    "directory": "packages/prompt"
   },
   "homepage": "https://github.com/contextmux/contextmux#readme",
   "bugs": {

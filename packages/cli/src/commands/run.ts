@@ -28,7 +28,7 @@ import {
   type RunState,
   type TaskSpec,
 } from '@contextmux/core'
-import { renderPrompt } from '@contextmux/agent-claude'
+import { renderPrompt } from '@contextmux/prompt'
 import { LocalRunner } from '@contextmux/runner-local'
 import { inlineTask } from '@contextmux/tracker-file'
 import { ConfigError, resolveAgent, resolveTracker, resolvePublishTarget, lastRepo, lastRepoSource } from '../resolve.js'

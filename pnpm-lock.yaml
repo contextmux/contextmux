@@ -41,6 +41,9 @@ importers:
       '@contextmux/core':
         specifier: workspace:*
         version: link:../core
+      '@contextmux/prompt':
+        specifier: workspace:*
+        version: link:../prompt
       '@contextmux/repo':
         specifier: workspace:*
         version: link:../repo
@@ -134,6 +137,9 @@ importers:
       '@contextmux/learn':
         specifier: workspace:*
         version: link:../learn
+      '@contextmux/prompt':
+        specifier: workspace:*
+        version: link:../prompt
       '@contextmux/repo':
         specifier: workspace:*
         version: link:../repo
@@ -220,6 +226,18 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/prompt:
+    dependencies:
+      '@contextmux/context':
+        specifier: workspace:*
+        version: link:../context
+      '@contextmux/core':
+        specifier: workspace:*
+        version: link:../core
+      '@contextmux/repo':
+        specifier: workspace:*
+        version: link:../repo
 
   packages/repo: {}
 

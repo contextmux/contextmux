@@ -917,7 +917,8 @@ The CLI is `contextmux`; everything else is a library you can use on its own.
 | `@contextmux/core` | State machine, gates, adapter contracts — pure, no I/O |
 | `@contextmux/runner-local` | Local process runner with git worktree isolation |
 | `@contextmux/agent-cli` | Shared machinery for CLI-driven agents |
-| `@contextmux/agent-claude` | Claude Code as a driven agent, plus prompt assembly |
+| `@contextmux/prompt` | Assembling the prompt an agent is given — every agent, not any one |
+| `@contextmux/agent-claude` | Claude Code as a driven agent |
 | `@contextmux/agent-copilot` | Copilot coding agent as a delegated agent |
 | `@contextmux/agent-cursor` | Cursor as a driven agent |
 | `@contextmux/agent-codex` | Codex as a driven agent |

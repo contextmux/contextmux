@@ -9,7 +9,7 @@
  */
 import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
-import { renderPrompt } from '@contextmux/agent-claude'
+import { renderPrompt } from '@contextmux/prompt'
 import {
   DEFAULT_POLICY,
   Engine,

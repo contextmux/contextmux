@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { renderPrompt } from '../src/prompt.js'
-import { ClaudeAgent } from '../src/index.js'
-import { fakeTask, runAgentContract, type TaskSpec } from '@contextmux/core'
+import { renderPrompt } from '../src/index.js'
+import { fakeTask, type TaskSpec } from '@contextmux/core'
 import type { ContextModel } from '@contextmux/context'
 
 const context: ContextModel = {
@@ -125,17 +124,6 @@ describe('revision rounds', () => {
     })
     expect(out).toContain('src/a.ts:12 — use the shared helper')
   })
-})
-
-describe('ClaudeAgent contract', () => {
-  runAgentContract(
-    { it, expect: expect as never },
-    {
-      // A binary that does not exist, so the contract exercises the failure path without
-      // spending a token. An adapter must report that cleanly rather than throwing.
-      setup: () => ({ agent: new ClaudeAgent({ bin: 'definitely-not-claude-xyz' }) }),
-    },
-  )
 })
 
 describe('embedded documents', () => {

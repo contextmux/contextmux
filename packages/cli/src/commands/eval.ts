@@ -23,7 +23,7 @@ import {
   type Gate,
   type TaskSpec,
 } from '@contextmux/core'
-import { renderPrompt } from '@contextmux/agent-claude'
+import { renderPrompt } from '@contextmux/prompt'
 import { renderDetails, renderMarkdown, renderTable, runEval } from '@contextmux/eval'
 import { loadContext, writeFileAtomic } from '@contextmux/context'
 import { buildIndex, detectProfile } from '@contextmux/repo'

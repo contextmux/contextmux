@@ -43,6 +43,7 @@
     "@contextmux/forge-github": "workspace:*",
     "@contextmux/handoff": "workspace:*",
     "@contextmux/learn": "workspace:*",
+    "@contextmux/prompt": "workspace:*",
     "@contextmux/repo": "workspace:*",
     "@contextmux/runner-local": "workspace:*",
     "@contextmux/tracker-file": "workspace:*",

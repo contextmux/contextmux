@@ -5,9 +5,12 @@
  * should be reported as a configuration problem, not surface three layers down once a run is
  * already underway.
  */
+import { promises as fs } from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AGENT_NAMES, ConfigError, resolveAgent, resolveTracker } from '../src/resolve.js'
-import { makeRepo, removeRepo, useIsolatedEnv } from './helpers.js'
+import { AGENT_NAMES, ConfigError, resolveAgent, resolveTracker, repoFromRemote, lastRepo, lastRepoSource } from '../src/resolve.js'
+import { makeRepo, removeRepo, useIsolatedEnv, initGitWithRemote } from './helpers.js'
 
 useIsolatedEnv()
 
@@ -176,5 +179,99 @@ describe('the repository’s own choice of agent and tracker', () => {
     const root = await withConfig({ tracker: 'file' })
     expect((await resolveTracker(at(root))).id).toBe('file')
     await removeRepo(root)
+  })
+})
+
+/**
+ * Working out which repository this is, when nobody said.
+ *
+ * The URL shapes are worth pinning because getting one wrong produces a configuration that
+ * looks right and fails at the first write.
+ */
+describe('reading a repository from a git remote', () => {
+  it('reads https, with and without the .git suffix', () => {
+    expect(repoFromRemote('https://github.com/acme/widgets.git')).toBe('acme/widgets')
+    expect(repoFromRemote('https://github.com/acme/widgets')).toBe('acme/widgets')
+  })
+
+  it('reads the scp-style ssh form', () => {
+    expect(repoFromRemote('git@github.com:acme/widgets.git')).toBe('acme/widgets')
+  })
+
+  it('reads ssh:// with a port', () => {
+    expect(repoFromRemote('ssh://git@github.com:2222/acme/widgets.git')).toBe('acme/widgets')
+  })
+
+  it('reads a host that is not github.com, since enterprise exists', () => {
+    expect(repoFromRemote('https://github.example.com/acme/widgets.git')).toBe('acme/widgets')
+  })
+
+  it('ignores surrounding whitespace, which git output carries', () => {
+    expect(repoFromRemote('  https://github.com/acme/widgets.git\n')).toBe('acme/widgets')
+  })
+
+  it('returns nothing for a remote that is not a repository URL', () => {
+    expect(repoFromRemote('/srv/git/widgets')).toBeNull()
+    expect(repoFromRemote('')).toBeNull()
+    expect(repoFromRemote('https://github.com/acme')).toBeNull()
+  })
+
+  it('does not invent an owner from a bare path', () => {
+    // A local clone with no host has no owner, and guessing one would produce a configuration
+    // that resolves and then 404s.
+    expect(repoFromRemote('../widgets')).toBeNull()
+  })
+})
+
+describe('where the repository came from', () => {
+  it('falls back to the git remote when gh cannot answer', async () => {
+    // The fixture's remote names a repository that does not exist, so `gh repo view` fails and
+    // the remote is used. Exercises the fallback; the preference for gh over the remote is what
+    // the next test covers, and only the real thing can prove the rename case.
+    await initGitWithRemote(root)
+    await resolveAgent({ ...opts(), agent: 'copilot' })
+
+    expect(lastRepoSource).toBe('detected')
+    expect(lastRepo).toBe('acme/web')
+  })
+
+  it('asks gh before trusting the remote, because only gh follows a rename', async () => {
+    // A renamed repository keeps answering its old URL with a redirect that reads follow and
+    // writes do not, so a run configured from a stale remote fetches the ticket, runs the
+    // agent, and fails when it opens the pull request. A gh that disagrees with the remote is
+    // the whole question: whichever one wins here is the one that decides that outcome.
+    await initGitWithRemote(root) // remote says acme/web
+    const bin = await fs.mkdtemp(path.join(os.tmpdir(), 'ctxmux-fakebin-'))
+    await fs.writeFile(path.join(bin, 'gh'), '#!/bin/sh\necho renamed/elsewhere\n', { mode: 0o755 })
+
+    const previous = process.env['PATH']
+    process.env['PATH'] = `${bin}${path.delimiter}${previous}`
+    try {
+      await resolveAgent({ ...opts(), agent: 'copilot' })
+      expect(lastRepo).toBe('renamed/elsewhere')
+    } finally {
+      process.env['PATH'] = previous
+      await fs.rm(bin, { recursive: true, force: true })
+    }
+  })
+
+
+
+  it('prefers what was passed over anything it could work out', async () => {
+    await resolveAgent({ ...opts(), agent: 'copilot', repo: 'acme/widgets' })
+
+    expect(lastRepo).toBe('acme/widgets')
+    expect(lastRepoSource).toBe('flag')
+  })
+
+  it('records that a value came from the environment rather than detection', async () => {
+    process.env['CTXMUX_REPO'] = 'acme/from-env'
+    try {
+      await resolveAgent({ ...opts(), agent: 'copilot' })
+      expect(lastRepo).toBe('acme/from-env')
+      expect(lastRepoSource).toBe('env')
+    } finally {
+      delete process.env['CTXMUX_REPO']
+    }
   })
 })

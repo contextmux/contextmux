@@ -512,6 +512,11 @@ competent agent anything it would not already do. `propose` asks what rules are 
 | `ctxmux propose` | Ask a council of agents what rules this repository should have |
 | `ctxmux map` | Query the repository index |
 | `ctxmux run` | Drive a task to a proposed change, under gates |
+
+Inside a git checkout with a GitHub remote, the repository is worked out for you — `gh` first,
+because it follows renames and a stale remote produces a run that reads fine and fails when it
+opens the pull request. `--repo` or `CTXMUX_REPO` override it, and a detected one is named in
+the plan so it is never a silent guess.
 | `ctxmux status` | Show recorded runs and what is waiting on you |
 | `ctxmux trace` | Show what an agent actually did, step by step |
 | `ctxmux event` | Feed a forge webhook (a review, a comment) into a run |

@@ -31,7 +31,7 @@ import {
 import { renderPrompt } from '@contextmux/agent-claude'
 import { LocalRunner } from '@contextmux/runner-local'
 import { inlineTask } from '@contextmux/tracker-file'
-import { ConfigError, resolveAgent, resolveTracker, resolvePublishTarget } from '../resolve.js'
+import { ConfigError, resolveAgent, resolveTracker, resolvePublishTarget, lastRepo, lastRepoSource } from '../resolve.js'
 import { loadContext, writeFileAtomic } from '@contextmux/context'
 import { buildIndex, detectProfile, type RepoIndex } from '@contextmux/repo'
 import {
@@ -581,6 +581,12 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     }
     bullet(`tracker: ${tracker.id}`)
     bullet(`agent: ${agent.displayName} (${agent.kind})${health.ok ? '' : c.yellow(' — unavailable')}`)
+    // Only when nobody typed it. A detected repository is the one nobody has checked, and on a
+    // renamed repository the git remote still names the old owner — which reads fine and fails
+    // at the write.
+    if (lastRepo && lastRepoSource === 'detected') {
+      bullet(`repo: ${lastRepo} ${c.dim('(detected — pass --repo to override)')}`)
+    }
     bullet(
       agent.capabilities.sandbox === 'vendor'
         ? `sandbox: provided by ${agent.displayName}`

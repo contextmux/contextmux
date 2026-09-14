@@ -21330,14 +21330,40 @@ function env(name) {
   const value = process.env[name];
   return value && value.trim() ? value : void 0;
 }
-function repoRef(opts) {
-  const value = opts.repo ?? env("CTXMUX_REPO") ?? env("GITHUB_REPOSITORY");
+function repoFromRemote(url) {
+  const cleaned = url.trim().replace(/\.git$/, "");
+  const match = /^(?:https?:\/\/|ssh:\/\/git@|git@)[^/:]+(?::\d+)?[/:]([^/]+)\/([^/]+)$/.exec(cleaned);
+  if (!match) return null;
+  const [, owner, repo] = match;
+  return owner && repo ? `${owner}/${repo}` : null;
+}
+async function detectRepo(root) {
+  const { spawn: spawn6 } = await import("node:child_process");
+  const run3 = (cmd, args) => new Promise((resolve17) => {
+    const child = spawn6(cmd, args, { cwd: root, windowsHide: true });
+    let out = "";
+    child.stdout.on("data", (d) => out += d);
+    child.on("error", () => resolve17(""));
+    child.on("close", (code) => resolve17(code === 0 ? out.trim() : ""));
+  });
+  const canonical = await run3("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]);
+  if (canonical.includes("/")) return canonical;
+  const remote = await run3("git", ["remote", "get-url", "origin"]);
+  return remote ? repoFromRemote(remote) ?? void 0 : void 0;
+}
+var lastRepoSource = null;
+var lastRepo = null;
+async function repoRef(opts) {
+  const detected = opts.repo ? void 0 : env("CTXMUX_REPO") ? void 0 : env("GITHUB_REPOSITORY") ? void 0 : await detectRepo(opts.root ?? process.cwd());
+  lastRepoSource = opts.repo ? "flag" : env("CTXMUX_REPO") ? "env" : env("GITHUB_REPOSITORY") ? "action" : detected ? "detected" : null;
+  const value = opts.repo ?? env("CTXMUX_REPO") ?? env("GITHUB_REPOSITORY") ?? detected;
   if (!value) {
     throw new ConfigError(
       "No repository configured.",
-      "Pass --repo owner/name, or set CTXMUX_REPO. Inside a GitHub Action, GITHUB_REPOSITORY is used automatically."
+      "Pass --repo owner/name, or set CTXMUX_REPO. Inside a git repository with a GitHub remote it is detected; in a GitHub Action, GITHUB_REPOSITORY is used."
     );
   }
+  lastRepo = value;
   return parseRepo(value);
 }
 async function fromConfig(root, key) {
@@ -21393,7 +21419,7 @@ async function resolveAgent(opts) {
           "Run `gh auth login`, or set GITHUB_TOKEN."
         );
       }
-      return copilotAgent({ client, repo: repoRef(opts) });
+      return copilotAgent({ client, repo: await repoRef(opts) });
     }
     default:
       throw new ConfigError(
@@ -21411,7 +21437,7 @@ async function resolveTracker(opts) {
       const { client } = await resolveClient();
       return new GitHubTracker({
         client,
-        repo: repoRef(opts),
+        repo: await repoRef(opts),
         label: env("CTXMUX_LABEL") ?? "contextmux",
         defaultQualityGate: opts.defaultQualityGate,
         ...opts.scope ? { defaultScope: opts.scope } : {}
@@ -21446,7 +21472,7 @@ async function resolveTracker(opts) {
   }
 }
 async function resolvePublishTarget(opts, root) {
-  const ref = repoRef(opts);
+  const ref = await repoRef(opts);
   const { client } = await resolveClient({});
   const forge = new GitHubForge(client, ref);
   const fromEnv = env("GITHUB_REF_NAME") ?? env("CTXMUX_BASE_BRANCH");
@@ -22167,6 +22193,9 @@ async function runCommand(args) {
       }
       bullet(`tracker: ${tracker.id}`);
       bullet(`agent: ${agent.displayName} (${agent.kind})${health.ok ? "" : c.yellow(" \u2014 unavailable")}`);
+      if (lastRepo && lastRepoSource === "detected") {
+        bullet(`repo: ${lastRepo} ${c.dim("(detected \u2014 pass --repo to override)")}`);
+      }
       bullet(
         agent.capabilities.sandbox === "vendor" ? `sandbox: provided by ${agent.displayName}` : isolated ? `isolated worktree: ${runner.cwd}` : c.yellow("running in your working tree")
       );

@@ -67,14 +67,80 @@ function env(name: string): string | undefined {
   return value && value.trim() ? value : undefined
 }
 
-function repoRef(opts: ResolveOptions): RepoRef {
-  const value = opts.repo ?? env('CTXMUX_REPO') ?? env('GITHUB_REPOSITORY')
+/**
+ * Owner and repository from a git remote URL.
+ *
+ * Pure, because the interesting part is the shapes rather than the shelling out: HTTPS with and
+ * without `.git`, SSH in scp form, and ssh:// with a port.
+ */
+export function repoFromRemote(url: string): string | null {
+  const cleaned = url.trim().replace(/\.git$/, '')
+  const match =
+    /^(?:https?:\/\/|ssh:\/\/git@|git@)[^/:]+(?::\d+)?[/:]([^/]+)\/([^/]+)$/.exec(cleaned)
+  if (!match) return null
+  const [, owner, repo] = match
+  return owner && repo ? `${owner}/${repo}` : null
+}
+
+/**
+ * Where this repository lives, when nobody said.
+ *
+ * `gh` first, and not merely for convenience: it follows renames. This repository's own remote
+ * still says `performgroup/oct-opta-ssc` while the repository is now `statsperform/...`, and
+ * GitHub answers the old name with a redirect that reads follow and writes do not. Detection
+ * that trusted the remote would produce a configuration which fetches the ticket, runs the
+ * agent, and fails at the moment it opens the pull request — a worse outcome than asking.
+ *
+ * The remote is the fallback when `gh` is absent. It is usually right, and where it is not, the
+ * forge already explains the redirect when a write fails.
+ */
+async function detectRepo(root: string): Promise<string | undefined> {
+  const { spawn } = await import('node:child_process')
+  const run = (cmd: string, args: string[]): Promise<string> =>
+    new Promise((resolve) => {
+      const child = spawn(cmd, args, { cwd: root, windowsHide: true })
+      let out = ''
+      child.stdout.on('data', (d) => (out += d))
+      child.on('error', () => resolve(''))
+      child.on('close', (code) => resolve(code === 0 ? out.trim() : ''))
+    })
+
+  const canonical = await run('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'])
+  if (canonical.includes('/')) return canonical
+
+  const remote = await run('git', ['remote', 'get-url', 'origin'])
+  return remote ? (repoFromRemote(remote) ?? undefined) : undefined
+}
+
+/**
+ * How the repository was arrived at, for anything that wants to say so.
+ *
+ * Detection is the one source nobody typed, which makes it the one worth reporting: a wrong
+ * `--repo` is a typo somebody can see, and a wrongly detected one is invisible.
+ */
+export let lastRepoSource: 'flag' | 'env' | 'action' | 'detected' | null = null
+/** The repository that was resolved, in `owner/name` form. */
+export let lastRepo: string | null = null
+
+async function repoRef(opts: ResolveOptions): Promise<RepoRef> {
+  const detected = opts.repo ? undefined : env('CTXMUX_REPO') ? undefined : env('GITHUB_REPOSITORY') ? undefined : await detectRepo(opts.root ?? process.cwd())
+  lastRepoSource = opts.repo
+    ? 'flag'
+    : env('CTXMUX_REPO')
+      ? 'env'
+      : env('GITHUB_REPOSITORY')
+        ? 'action'
+        : detected
+          ? 'detected'
+          : null
+  const value = opts.repo ?? env('CTXMUX_REPO') ?? env('GITHUB_REPOSITORY') ?? detected
   if (!value) {
     throw new ConfigError(
       'No repository configured.',
-      'Pass --repo owner/name, or set CTXMUX_REPO. Inside a GitHub Action, GITHUB_REPOSITORY is used automatically.',
+      'Pass --repo owner/name, or set CTXMUX_REPO. Inside a git repository with a GitHub remote it is detected; in a GitHub Action, GITHUB_REPOSITORY is used.',
     )
   }
+  lastRepo = value
   return parseRepo(value)
 }
 
@@ -163,7 +229,7 @@ export async function resolveAgent(opts: ResolveOptions): Promise<CodingAgent> {
           'Run `gh auth login`, or set GITHUB_TOKEN.',
         )
       }
-      return copilotAgent({ client, repo: repoRef(opts) })
+      return copilotAgent({ client, repo: await repoRef(opts) })
     }
 
     default:
@@ -185,7 +251,7 @@ export async function resolveTracker(opts: ResolveOptions): Promise<Tracker> {
       const { client } = await resolveClient()
       return new GitHubTracker({
         client,
-        repo: repoRef(opts),
+        repo: await repoRef(opts),
         label: env('CTXMUX_LABEL') ?? 'contextmux',
         defaultQualityGate: opts.defaultQualityGate,
         ...(opts.scope ? { defaultScope: opts.scope } : {}),
@@ -234,7 +300,7 @@ export async function resolvePublishTarget(
   opts: ResolveOptions,
   root: string,
 ): Promise<{ forge: GitHubForge; baseBranch: string }> {
-  const ref = repoRef(opts)
+  const ref = await repoRef(opts)
   const { client } = await resolveClient({})
   const forge = new GitHubForge(client, ref)
 

@@ -303,8 +303,41 @@ export function renderPrompt(opts: PromptOptions): string {
       [
         map.text.trim(),
         '',
-        'Read the relevant files before writing anything. If something close to what you need',
-        'already exists, extend it rather than adding a parallel implementation.',
+        /*
+         * Decide what to read, then read it once.
+         *
+         * Observed on a real run: one file was opened eleven times in overlapping line ranges
+         * and another six, because the agent explored incrementally — read a little, search,
+         * read a little more. Seventeen reads of two files, each one paid for. Naming the set
+         * up front costs one sentence and replaces the hunt with a list.
+         */
+        ...(task.scope.allow.length === 0 && map.files.length > 0
+          ? [
+              /*
+               * A starting point when nobody gave one.
+               *
+               * The map is already ranked against the task, so the top of it is the best guess
+               * available without asking anybody to think about globs. Offered as a place to
+               * begin rather than a boundary: an inferred scope that is wrong must not stop
+               * correct work, so nothing gates on this — only `--allow` does.
+               */
+              `Most likely relevant, by the ranking above: ${map.files
+                .slice(0, 6)
+                .map((f) => `\`${f.path}\``)
+                .join(', ')}.`,
+              'Start there. Look wider only if what you find sends you somewhere else.',
+              '',
+            ]
+          : []),
+        'Before reading anything, decide which files you need and say so. Then open each one',
+        'once, in full. Re-opening a file you have already read, or reading it in overlapping',
+        'pieces, costs as much as reading it the first time and tells you nothing new — if you',
+        'find you need more of a file, you needed the whole file.',
+        '',
+        'Prefer one search that answers a question over several that narrow towards it.',
+        '',
+        'If something close to what you need already exists, extend it rather than adding a',
+        'parallel implementation.',
       ].join('\n'),
     )
   }

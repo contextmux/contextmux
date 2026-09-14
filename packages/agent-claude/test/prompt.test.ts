@@ -371,3 +371,94 @@ describe('who runs the checks', () => {
     expect(prompt).not.toContain('Before you finish')
   })
 })
+
+/**
+ * What the prompt says about reading.
+ *
+ * From a real delegated run: one file opened eleven times in overlapping line ranges, another
+ * six, roughly twenty searches — and the whole of it billed. Most of the spend was finding
+ * things rather than changing them.
+ */
+describe('keeping the reading down', () => {
+  /** Shaped like the real index, which the map reads more of than a few paths. */
+  const index = {
+    root: '/repo',
+    builtAt: 0,
+    skipped: 0,
+    truncated: false,
+    git: { commitCounts: new Map(), lastTouched: new Map(), coChange: new Map() },
+    files: [
+      { path: 'src/lineup/save.ts', name: 'saveLineup' },
+      { path: 'src/lineup/select.ts', name: 'lineupSelector' },
+      { path: 'docs/unrelated.md', name: 'somethingElse' },
+    ].map((f) => ({
+      path: f.path,
+      ext: '.ts',
+      bytes: 100,
+      hash: 'x',
+      symbols: [{ name: f.name, kind: 'function' as const, line: 1, exported: true }],
+    })),
+  } as never
+
+  it('asks for the set of files up front, rather than one at a time', () => {
+    const out = renderPrompt({ task: fakeTask(), index })
+
+    expect(out).toContain('decide which files you need')
+  })
+
+  it('says plainly that re-reading a file costs and buys nothing', () => {
+    const out = renderPrompt({ task: fakeTask(), index })
+
+    expect(out).toContain('once, in full')
+    expect(out).toContain('you needed the whole file')
+  })
+
+  /** A task whose words actually match the fixture, or the map ranks nothing. */
+  const lineupTask = () =>
+    ({
+      ...fakeTask(),
+      title: 'Save partial lineup changes',
+      body: 'The lineup selector should persist a partial save.',
+      scope: { allow: [], deny: [] },
+    }) as TaskSpec
+
+  it('offers a starting point when nobody scoped the task', () => {
+    const task = lineupTask()
+    const out = renderPrompt({ task, index })
+
+    expect(out).toContain('Most likely relevant')
+    expect(out).toContain('Start there')
+  })
+
+  it('does not guess when the task was scoped, since the scope is already stated', () => {
+    const task = { ...fakeTask(), scope: { allow: ['src/lineup/**'], deny: [] } } as TaskSpec
+    const out = renderPrompt({ task, index })
+
+    expect(out).toContain('You may modify only')
+    expect(out).not.toContain('Most likely relevant')
+  })
+
+  it('offers the starting point as a place to begin, not a boundary', () => {
+    const task = lineupTask()
+    const out = renderPrompt({ task, index })
+
+    // An inferred scope that is wrong must not stop correct work. Only --allow gates.
+    expect(out).toContain('Look wider only if')
+    expect(out).not.toContain('You may modify only')
+  })
+
+  it('says nothing about reading when there is no map to read from', () => {
+    const out = renderPrompt({ task: lineupTask() })
+
+    expect(out).not.toContain('Most likely relevant')
+    expect(out).not.toContain('decide which files you need')
+  })
+
+  it('suggests nothing when the map found nothing worth suggesting', () => {
+    // A task with no overlap ranks no files, and a guess drawn from an empty ranking would be
+    // worse than staying quiet.
+    const out = renderPrompt({ task: fakeTask(), index })
+
+    expect(out).not.toContain('Most likely relevant')
+  })
+})

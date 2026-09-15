@@ -96,6 +96,17 @@ const KIND_WEIGHT: Partial<Record<SymbolKind, number>> = {
   type: 1.1,
 }
 
+/** Extra weight for a match in the file's own name, over its directory. */
+const NAME_WEIGHT = 3
+
+/** How many are shown, so one large file cannot spend the whole budget on itself. */
+const RENDER_SYMBOLS = 6
+
+function basename(p: string): string {
+  const at = p.lastIndexOf('/')
+  return at === -1 ? p : p.slice(at + 1)
+}
+
 export function scoreFiles(index: RepoIndex, query: MapQuery): ScoredFile[] {
   const terms = query.text ? tokenize(query.text) : []
   const termSet = new Set(terms)
@@ -140,6 +151,17 @@ export function scoreFiles(index: RepoIndex, query: MapQuery): ScoredFile[] {
     if (termSet.size > 0) {
       let pathScore = 0
       for (const t of tokenize(file.path)) if (termSet.has(t)) pathScore += idf(t)
+      /*
+       * The file's own name counts again, on top of its directory.
+       *
+       * Score is otherwise a sum over matching symbols, which makes it a measure of how many
+       * exported names a file has. A React page exports one component and keeps its logic
+       * inside it — thirty-seven kilobytes yielding three symbols — so a page named after the
+       * feature loses to any flat module of selectors that brushes the query twenty times.
+       * A name is a deliberate statement about what a file is for, and worth more than the
+       * directory that happens to contain it.
+       */
+      for (const t of tokenize(basename(file.path))) if (termSet.has(t)) pathScore += idf(t) * NAME_WEIGHT
       if (pathScore > 0) {
         score += pathScore * 1.5
         reasons.push('path match')
@@ -147,7 +169,7 @@ export function scoreFiles(index: RepoIndex, query: MapQuery): ScoredFile[] {
     }
 
     // --- lexical + pattern match on symbols ------------------------------
-    const matched: SymbolRef[] = []
+    const matched: Array<{ sym: SymbolRef; score: number }> = []
     for (const sym of file.symbols) {
       let symScore = 0
       if (symbolPatterns.some((re) => re.test(sym.name))) {
@@ -162,10 +184,21 @@ export function scoreFiles(index: RepoIndex, query: MapQuery): ScoredFile[] {
       if (symScore > 0) {
         symScore *= KIND_WEIGHT[sym.kind] ?? 1
         if (sym.exported) symScore *= 1.2
-        score += symScore
-        matched.push(sym)
+        matched.push({ sym, score: symScore })
       }
     }
+
+    /*
+     * Every match counts towards the score, and that was tried the other way.
+     *
+     * Capping the sum at the best five looked obviously right — a long tail of weak matches is
+     * evidence a file is large rather than relevant — and measuring it on a real ticket said
+     * otherwise: the three files the work actually touched each fell three to six places,
+     * because their many matches were genuine. Size and relevance are not as separable here as
+     * they look.
+     */
+    matched.sort((a, b) => b.score - a.score)
+    for (const m of matched) score += m.score
     if (matched.length > 0) reasons.push(`${matched.length} matching symbol(s)`)
 
     // --- git signals ------------------------------------------------------
@@ -192,7 +225,15 @@ export function scoreFiles(index: RepoIndex, query: MapQuery): ScoredFile[] {
       // barrel file matching once is less relevant than a 3-symbol module matching once.
       const density = matched.length / Math.max(4, file.symbols.length)
       score *= 1 + density * 0.5
-      scored.push({ path: file.path, score, symbols: matched.length > 0 ? matched : file.symbols.slice(0, 3), reasons })
+      /*
+     * Only the strongest matches are shown, not every one.
+     *
+     * A file listing twenty-six symbols spends twenty-six lines of a shared budget saying that
+     * it is large. Six says what it is about, and the space bought back holds other files —
+     * which is what a reader looking for the right place actually needs.
+     */
+    const shown = matched.length > 0 ? matched.slice(0, RENDER_SYMBOLS).map((m) => m.sym) : file.symbols.slice(0, 3)
+    scored.push({ path: file.path, score, symbols: shown, reasons })
     }
   }
 

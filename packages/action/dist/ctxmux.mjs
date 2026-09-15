@@ -14388,6 +14388,12 @@ var KIND_WEIGHT = {
   interface: 1.1,
   type: 1.1
 };
+var NAME_WEIGHT = 3;
+var RENDER_SYMBOLS = 6;
+function basename6(p) {
+  const at = p.lastIndexOf("/");
+  return at === -1 ? p : p.slice(at + 1);
+}
 function scoreFiles(index, query) {
   const terms3 = query.text ? tokenize(query.text) : [];
   const termSet = new Set(terms3);
@@ -14423,6 +14429,7 @@ function scoreFiles(index, query) {
     if (termSet.size > 0) {
       let pathScore = 0;
       for (const t of tokenize(file.path)) if (termSet.has(t)) pathScore += idf(t);
+      for (const t of tokenize(basename6(file.path))) if (termSet.has(t)) pathScore += idf(t) * NAME_WEIGHT;
       if (pathScore > 0) {
         score += pathScore * 1.5;
         reasons.push("path match");
@@ -14443,10 +14450,11 @@ function scoreFiles(index, query) {
       if (symScore > 0) {
         symScore *= KIND_WEIGHT[sym.kind] ?? 1;
         if (sym.exported) symScore *= 1.2;
-        score += symScore;
-        matched.push(sym);
+        matched.push({ sym, score: symScore });
       }
     }
+    matched.sort((a, b) => b.score - a.score);
+    for (const m of matched) score += m.score;
     if (matched.length > 0) reasons.push(`${matched.length} matching symbol(s)`);
     const co = coScores.get(file.path);
     if (co) {
@@ -14465,7 +14473,8 @@ function scoreFiles(index, query) {
     if (score > 0) {
       const density = matched.length / Math.max(4, file.symbols.length);
       score *= 1 + density * 0.5;
-      scored.push({ path: file.path, score, symbols: matched.length > 0 ? matched : file.symbols.slice(0, 3), reasons });
+      const shown = matched.length > 0 ? matched.slice(0, RENDER_SYMBOLS).map((m) => m.sym) : file.symbols.slice(0, 3);
+      scored.push({ path: file.path, score, symbols: shown, reasons });
     }
   }
   return scored.sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));

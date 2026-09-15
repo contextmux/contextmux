@@ -141,3 +141,66 @@ describe('empty results', () => {
     expect(map.text).toContain('No existing code matched')
   })
 })
+
+/**
+ * Files whose logic does not appear as exported symbols.
+ *
+ * Score is largely a sum over matching symbols, which makes it a measure of how many names a
+ * file exports. A React page exports one component and keeps everything inside it — measured on
+ * a real repository, thirty-seven kilobytes yielding three symbols — so a page named after the
+ * feature loses to any flat module of selectors that brushes the query twenty times. On the
+ * ticket that prompted this, the page the work actually changed did not appear in the map at
+ * all, while a throw-in validation module sat near the top.
+ */
+describe('ranking a file by its name', () => {
+  const repo = index([
+    // One symbol, but named for exactly what is being asked about.
+    { path: 'src/pages/TeamSetup/TeamSetup.tsx', symbols: [{ name: 'TeamSetup' }] },
+    // Many symbols that each brush the query, in a file about something else.
+    {
+      path: 'src/selectors/validation.ts',
+      symbols: Array.from({ length: 20 }, (_, i) => ({ name: `validateTeamThing${i}` })),
+    },
+  ])
+
+  it('scores a page higher for its name than it would without one', () => {
+    /*
+     * Deliberately not asserting that the page outranks the noisy file, because it does not.
+     * Twenty symbols each brushing the query still win, and on the real repository this moved
+     * the page from absent to nineteenth rather than to first. What the weighting buys is that
+     * the page appears at all, which is the difference between a reader seeing it and not.
+     */
+    const withName = buildMap(repo, { text: 'team setup page', budget: 3000 })
+    const page = withName.files.find((f) => f.path.includes('TeamSetup.tsx'))
+    const unnamed = buildMap(
+      index([{ path: 'src/pages/Other/Other.tsx', symbols: [{ name: 'TeamSetup' }] }]),
+      { text: 'team setup page', budget: 3000 },
+    ).files[0]
+
+    expect(page).toBeDefined()
+    expect(page?.score ?? 0).toBeGreaterThan(unnamed?.score ?? 0)
+  })
+
+  it('counts a match in the file name above one in its directory', () => {
+    // Both paths tokenize to team + setup; only the first has it in the file's own name.
+    // An all-lowercase directory like `teamsetup` does not split, so it matches nothing and
+    // would make this pass whether or not the name is weighted at all.
+    const named = index([{ path: 'src/a/TeamSetup.tsx', symbols: [{ name: 'X' }] }])
+    const nested = index([{ path: 'src/TeamSetup/other.tsx', symbols: [{ name: 'X' }] }])
+
+    const a = buildMap(named, { text: 'team setup', budget: 3000 }).files[0]
+    const b = buildMap(nested, { text: 'team setup', budget: 3000 }).files[0]
+
+    expect(a?.score).toBeGreaterThan(b?.score ?? 0)
+  })
+
+  it('shows only the strongest few symbols, not every one a large file has', () => {
+    const big = index([
+      { path: 'src/huge.ts', symbols: Array.from({ length: 40 }, (_, i) => ({ name: `teamThing${i}` })) },
+    ])
+    const map = buildMap(big, { text: 'team', budget: 3000 })
+
+    // Twenty-six lines of symbol names spends a shared budget saying a file is large.
+    expect(map.files[0]?.symbols.length).toBeLessThanOrEqual(6)
+  })
+})

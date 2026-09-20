@@ -24,6 +24,13 @@ ${c.bold('USAGE')}
   ctxmux <command> [options]
 
 ${c.bold('COMMANDS')}
+  init            Scaffold .ctxmux/ from a starter pack, using the detected toolchain
+  import          Build .ctxmux/ from existing agent config already in the repo
+  sync            Compile .ctxmux/ to every configured agent
+  advise          Review .ctxmux/ and report what will not work, or not be followed
+                  --depth single|panel also asks your agent; the default costs nothing
+  doctor          Report anything that will fail silently
+
   run             Drive a task to a proposed change, with gates and an isolated worktree
   status          Show recorded runs and what is waiting on you
   trace           Show what an agent actually did, step by step
@@ -33,15 +40,9 @@ ${c.bold('COMMANDS')}
   learn           Turn recurring review feedback into proposed edits to .ctxmux/
   state           Share run state between machines and jobs (push | pull)
 
-  init            Scaffold .ctxmux/ from a starter pack, using the detected toolchain
-  import          Build .ctxmux/ from existing agent config already in the repo
   add             Install a third-party skill pack
-  sync            Compile .ctxmux/ to every configured agent
   check           Verify generated files are in sync; exits non-zero if not (for CI)
-  advise          Review .ctxmux/ and report what will not work, or not be followed
-                  --depth single|panel also asks your agent; the default costs nothing
   propose         Ask a council of agents what rules this repository should have
-  doctor          Report anything that will fail silently
   map             Query the repository index and print a token-budgeted map
 
 ${c.bold('COMMON OPTIONS')}

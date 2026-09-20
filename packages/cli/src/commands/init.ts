@@ -113,14 +113,12 @@ function hasGitRemote(root: string): Promise<boolean> {
  * but somebody who typed `--advise` cannot tell that silence apart from a flag that did
  * nothing, so they get an answer either way.
  */
-async function reviewWhatIsThere(root: string, asked: boolean): Promise<void> {
-  const { findings, hadFileList } = await advise(root)
+async function reviewWhatIsThere(root: string, _asked: boolean): Promise<void> {
+  const { findings, hadFileList, checked } = await advise(root)
   if (findings.length === 0) {
-    if (asked) {
-      info('')
-      success('Nothing to say about the rules themselves.')
-      if (!hadFileList) hintNoGit()
-    }
+    info('')
+    success(`advise: clean (${checked || 'nothing to check'})`)
+    if (!hadFileList) hintNoGit()
     return
   }
   renderAdvice(findings)
@@ -133,6 +131,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   const root = flagString(args, 'root') ?? process.cwd()
   const force = flagBool(args, 'force', 'f')
   const wantAdvice = flagBool(args, 'advise')
+  const compilerOnly = flagBool(args, 'compiler-only')
 
   const dir = path.join(root, '.ctxmux')
   const already = await fs
@@ -188,7 +187,15 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * rules they were compiled from, and sync fails with "two nodes compile to the same output
    * path". The round trip has to happen once, on the way in, or not at all.
    */
-  const imported = already ? null : await importContext(root).catch(() => null)
+  let imported: Awaited<ReturnType<typeof importContext>> | null = null
+  if (!already) {
+    try {
+      imported = await importContext(root)
+    } catch (e) {
+      warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
+      info('    ' + c.dim('Continuing with a starter pack.'))
+    }
+  }
   const foundExisting = (imported?.provenance.length ?? 0) > 0
 
   const written: string[] = []
@@ -202,6 +209,13 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
     for (const p of imported.provenance.slice(0, 8)) bullet(`${p.from} -> ${p.to}`)
     if (imported.provenance.length > 8) {
       info(c.dim(`    ...and ${imported.provenance.length - 8} more`))
+    }
+    if (imported.diagnostics.length > 0) {
+      heading('Review these')
+      for (const d of imported.diagnostics) {
+        warn(`${d.file ? d.file + ': ' : ''}${d.message}`)
+        if (d.hint) info('    ' + c.dim(d.hint))
+      }
     }
   }
 
@@ -227,7 +241,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * blocks on a keystroke nobody is there to press is worse than one that never asked.
    */
   const detected = imported ? detectTargets(imported.provenance) : []
-  const askable = interactive() && !flagBool(args, 'yes', 'y')
+  const askable = interactive() && !flagBool(args, 'yes', 'y') && !compilerOnly
 
   let targets = detected.length > 0 ? detected : ['claude', 'copilot', 'cursor', 'codex']
   let agent = detectAgent()
@@ -270,9 +284,12 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   }
 
   // Written whatever route got here, so a later run needs none of these flags.
+  const config = compilerOnly
+    ? { targets, provenance: true as const }
+    : { targets, agent, tracker }
   await writeFileAtomic(
     path.join(root, '.ctxmux', 'config.json'),
-    JSON.stringify({ targets, agent, tracker }, null, 2) + '\n',
+    JSON.stringify(config, null, 2) + '\n',
   )
   if (!written.includes('.ctxmux/config.json')) written.push('.ctxmux/config.json')
 
@@ -296,7 +313,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   }
 
   const workflows: string[] = []
-  if (!flagBool(args, 'no-workflows')) {
+  if (!compilerOnly && !flagBool(args, 'no-workflows')) {
     for (const file of workflowFiles(ctx)) {
       const abs = path.join(root, file.path)
       if (await fs.access(abs).then(() => true, () => false)) continue
@@ -327,8 +344,10 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
 
   info('')
   success(
-    `${written.length + workflows.length} file(s) written, ${generated.length} compiled. ` +
-      `Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`,
+    compilerOnly
+      ? `${written.length + workflows.length} file(s) written, ${generated.length} compiled.`
+      : `${written.length + workflows.length} file(s) written, ${generated.length} compiled. ` +
+          `Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`,
   )
 
   if (report.records.some((r) => r.status === 'drift')) {

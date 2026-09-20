@@ -373,12 +373,12 @@ describe('init --advise', () => {
     ].join('\n'),
   }
 
-  it('stays quiet after a scaffold that has nothing wrong with it', async () => {
+  it('prints a clean advise summary after a scaffold that has nothing wrong with it', async () => {
     await initGit(root)
     const { text } = await runCli(initCommand, argv(root, 'init'))
 
+    expect(text).toContain('advise: clean')
     expect(text).not.toContain('to look at')
-    expect(text).not.toContain('Nothing to say')
   })
 
   it('reviews imported config without being asked, because that is where the problems are', async () => {
@@ -540,5 +540,26 @@ describe('before the workflow can run', () => {
     // There is no API for this one, so `done` stays undefined rather than guessing false.
     expect(copilot?.done).toBeUndefined()
     expect(copilot?.how).toContain('no command')
+  })
+})
+
+
+describe('init --compiler-only', () => {
+  it('skips workflows and omits agent/tracker from config', async () => {
+    await initGitWithRemote(root)
+    const { code, text } = await runCli(initCommand, argv(root, 'init --compiler-only'))
+    expect(code).toBe(0)
+    expect(await exists(root, '.github/workflows/ctxmux-run.yml')).toBe(false)
+    const config = JSON.parse(await read(root, '.ctxmux/config.json'))
+    expect(config.targets?.length).toBeGreaterThan(0)
+    expect(config.agent).toBeUndefined()
+    expect(config.tracker).toBeUndefined()
+    expect(text).not.toContain('Before the workflow can run')
+  })
+
+  it('always prints an advise summary', async () => {
+    await initGit(root)
+    const { text } = await runCli(initCommand, argv(root, 'init --compiler-only'))
+    expect(text).toMatch(/advise: clean|to look at/)
   })
 })

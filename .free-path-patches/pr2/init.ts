@@ -240,16 +240,10 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * Skipped entirely without a terminal — a pipe, a CI runner, `--yes`. A setup command that
    * blocks on a keystroke nobody is there to press is worse than one that never asked.
    */
-  const detected = await detectTargets(root)
+  const detected = imported ? detectTargets(imported.provenance) : []
   const askable = interactive() && !flagBool(args, 'yes', 'y') && !compilerOnly
 
-  // No evidence → one target (the agent we would run), not all four. Interactive
-  // multi-select starts empty so the user opts in rather than opting out.
-  const fallbackOne = ((): string[] => {
-    const a = detectAgent()
-    return a === 'local' ? ['claude'] : a === 'copilot' || a === 'cursor' || a === 'codex' || a === 'claude' ? [a] : ['claude']
-  })()
-  let targets = detected.length > 0 ? detected : fallbackOne
+  let targets = detected.length > 0 ? detected : ['claude', 'copilot', 'cursor', 'codex']
   let agent = detectAgent()
   let tracker = detectTracker()
 
@@ -263,9 +257,8 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
           { value: 'cursor', label: 'Cursor', note: '.cursor/rules/' },
           { value: 'codex', label: 'Codex', note: 'AGENTS.md' },
         ],
-        [],
+        targets,
       )
-      if (targets.length === 0) targets = fallbackOne
     }
 
     agent = await selectOne(

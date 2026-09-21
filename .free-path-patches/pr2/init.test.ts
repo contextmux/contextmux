@@ -563,25 +563,3 @@ describe('init --compiler-only', () => {
     expect(text).toMatch(/advise: clean|to look at/)
   })
 })
-
-
-describe('narrower targets', () => {
-  it('does not default to all four targets when nothing is on disk', async () => {
-    const repo = await makeRepo({ 'package.json': '{"name":"x","packageManager":"pnpm@10.0.0"}' })
-    await runCli(initCommand, argv(repo, 'init --no-workflows'))
-    const targets = JSON.parse(await read(repo, '.ctxmux/config.json')).targets
-    expect(targets).not.toEqual(['claude', 'copilot', 'cursor', 'codex'])
-    expect(targets.length).toBe(1)
-    await removeRepo(repo)
-  })
-
-  it('detects cursor from .cursor/ without import provenance', async () => {
-    const repo = await makeRepo({
-      'package.json': '{"name":"x","packageManager":"pnpm@10.0.0"}',
-      '.cursor/rules/style.mdc': '---\ndescription: Style\n---\nUse tabs.\n',
-    })
-    await runCli(initCommand, argv(repo, 'init --no-workflows'))
-    expect(JSON.parse(await read(repo, '.ctxmux/config.json')).targets).toEqual(['cursor'])
-    await removeRepo(repo)
-  })
-})

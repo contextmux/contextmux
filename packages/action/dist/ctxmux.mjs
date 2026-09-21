@@ -24724,7 +24724,7 @@ ${c.bold("EXAMPLES")}
   ctxmux map "add a currency formatter" --budget 3000
   ctxmux sync --targets claude,cursor
 `;
-var VERSION2 = true ? "0.3.0" : "0.0.0-dev";
+var VERSION2 = true ? "0.3.1" : "0.0.0-dev";
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (flagBool(args, "version", "v")) {

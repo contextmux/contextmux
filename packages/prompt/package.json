@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/prompt",
-  "version": "0.3.0",
-  "description": "Internal to contextmux — install `contextmux` instead. Assembles the prompt an agent is given, for every agent rather than any one of them.",
+  "version": "0.3.1",
+  "description": "Internal to contextmux \u2014 install `contextmux` instead. Assembles the prompt an agent is given, for every agent rather than any one of them.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

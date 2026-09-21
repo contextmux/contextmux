@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/council",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Reviews a context model and reports what will not work, or will not be followed.",
   "license": "Apache-2.0",
   "type": "module",

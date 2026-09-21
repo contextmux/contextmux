@@ -450,10 +450,7 @@ export async function importContext(root: string, sourceDir = '.ctxmux'): Promis
   const detected = await detectTargets(root)
   const configPath = path.join(root, sourceDir, 'config.json')
   const configExists = await read(configPath).then((c) => c !== null)
-  // Only when import actually produced content. A ctxmux-generated CLAUDE.md still
-  // sits on disk, so path detection alone would invent config.json and turn a
-  // "nothing to import" exit into a success.
-  if (!configExists && files.length > 0 && detected.length > 0 && detected.length < 4) {
+  if (!configExists && detected.length > 0 && detected.length < 4) {
     files.push({
       path: path.join(sourceDir, 'config.json'),
       content: JSON.stringify({ targets: detected }, null, 2) + '\n',

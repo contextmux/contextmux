@@ -114,16 +114,13 @@ function hasGitRemote(root: string): Promise<boolean> {
  * nothing, so they get an answer either way.
  */
 async function reviewWhatIsThere(root: string, asked: boolean): Promise<void> {
-  const { findings, hadFileList, checked } = await advise(root)
+  const { findings, hadFileList } = await advise(root)
   if (findings.length === 0) {
-    info('')
-    // `--advise` must not look like a no-op; plain init already prints enough.
-    success(
-      asked
-        ? 'Nothing to say about the rules themselves.'
-        : `advise: clean (${checked || 'nothing to check'})`,
-    )
-    if (!hadFileList) hintNoGit()
+    if (asked) {
+      info('')
+      success('Nothing to say about the rules themselves.')
+      if (!hadFileList) hintNoGit()
+    }
     return
   }
   renderAdvice(findings)
@@ -136,7 +133,6 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   const root = flagString(args, 'root') ?? process.cwd()
   const force = flagBool(args, 'force', 'f')
   const wantAdvice = flagBool(args, 'advise')
-  const compilerOnly = flagBool(args, 'compiler-only')
 
   const dir = path.join(root, '.ctxmux')
   const already = await fs
@@ -192,15 +188,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * rules they were compiled from, and sync fails with "two nodes compile to the same output
    * path". The round trip has to happen once, on the way in, or not at all.
    */
-  let imported: Awaited<ReturnType<typeof importContext>> | null = null
-  if (!already) {
-    try {
-      imported = await importContext(root)
-    } catch (e) {
-      warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
-      info('    ' + c.dim('Continuing with a starter pack.'))
-    }
-  }
+  const imported = already ? null : await importContext(root).catch(() => null)
   const foundExisting = (imported?.provenance.length ?? 0) > 0
 
   const written: string[] = []
@@ -214,13 +202,6 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
     for (const p of imported.provenance.slice(0, 8)) bullet(`${p.from} -> ${p.to}`)
     if (imported.provenance.length > 8) {
       info(c.dim(`    ...and ${imported.provenance.length - 8} more`))
-    }
-    if (imported.diagnostics.length > 0) {
-      heading('Review these')
-      for (const d of imported.diagnostics) {
-        warn(`${d.file ? d.file + ': ' : ''}${d.message}`)
-        if (d.hint) info('    ' + c.dim(d.hint))
-      }
     }
   }
 
@@ -245,16 +226,10 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * Skipped entirely without a terminal — a pipe, a CI runner, `--yes`. A setup command that
    * blocks on a keystroke nobody is there to press is worse than one that never asked.
    */
-  const detected = await detectTargets(root)
-  const askable = interactive() && !flagBool(args, 'yes', 'y') && !compilerOnly
+  const detected = imported ? detectTargets(imported.provenance) : []
+  const askable = interactive() && !flagBool(args, 'yes', 'y')
 
-  // No evidence → one target (the agent we would run), not all four. Interactive
-  // multi-select starts empty so the user opts in rather than opting out.
-  const fallbackOne = ((): string[] => {
-    const a = detectAgent()
-    return a === 'local' ? ['claude'] : a === 'copilot' || a === 'cursor' || a === 'codex' || a === 'claude' ? [a] : ['claude']
-  })()
-  let targets = detected.length > 0 ? detected : fallbackOne
+  let targets = detected.length > 0 ? detected : ['claude', 'copilot', 'cursor', 'codex']
   let agent = detectAgent()
   let tracker = detectTracker()
 
@@ -268,9 +243,8 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
           { value: 'cursor', label: 'Cursor', note: '.cursor/rules/' },
           { value: 'codex', label: 'Codex', note: 'AGENTS.md' },
         ],
-        [],
+        targets,
       )
-      if (targets.length === 0) targets = fallbackOne
     }
 
     agent = await selectOne(
@@ -296,12 +270,9 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   }
 
   // Written whatever route got here, so a later run needs none of these flags.
-  const config = compilerOnly
-    ? { targets, provenance: true as const }
-    : { targets, agent, tracker }
   await writeFileAtomic(
     path.join(root, '.ctxmux', 'config.json'),
-    JSON.stringify(config, null, 2) + '\n',
+    JSON.stringify({ targets, agent, tracker }, null, 2) + '\n',
   )
   if (!written.includes('.ctxmux/config.json')) written.push('.ctxmux/config.json')
 
@@ -325,7 +296,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
   }
 
   const workflows: string[] = []
-  if (!compilerOnly && !flagBool(args, 'no-workflows')) {
+  if (!flagBool(args, 'no-workflows')) {
     for (const file of workflowFiles(ctx)) {
       const abs = path.join(root, file.path)
       if (await fs.access(abs).then(() => true, () => false)) continue
@@ -356,10 +327,8 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
 
   info('')
   success(
-    compilerOnly
-      ? `${written.length + workflows.length} file(s) written, ${generated.length} compiled.`
-      : `${written.length + workflows.length} file(s) written, ${generated.length} compiled. ` +
-          `Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`,
+    `${written.length + workflows.length} file(s) written, ${generated.length} compiled. ` +
+      `Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`,
   )
 
   if (report.records.some((r) => r.status === 'drift')) {

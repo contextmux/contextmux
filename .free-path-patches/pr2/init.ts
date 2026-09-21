@@ -113,16 +113,11 @@ function hasGitRemote(root: string): Promise<boolean> {
  * but somebody who typed `--advise` cannot tell that silence apart from a flag that did
  * nothing, so they get an answer either way.
  */
-async function reviewWhatIsThere(root: string, asked: boolean): Promise<void> {
+async function reviewWhatIsThere(root: string, _asked: boolean): Promise<void> {
   const { findings, hadFileList, checked } = await advise(root)
   if (findings.length === 0) {
     info('')
-    // `--advise` must not look like a no-op; plain init already prints enough.
-    success(
-      asked
-        ? 'Nothing to say about the rules themselves.'
-        : `advise: clean (${checked || 'nothing to check'})`,
-    )
+    success(`advise: clean (${checked || 'nothing to check'})`)
     if (!hadFileList) hintNoGit()
     return
   }
@@ -245,16 +240,10 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
    * Skipped entirely without a terminal — a pipe, a CI runner, `--yes`. A setup command that
    * blocks on a keystroke nobody is there to press is worse than one that never asked.
    */
-  const detected = await detectTargets(root)
+  const detected = imported ? detectTargets(imported.provenance) : []
   const askable = interactive() && !flagBool(args, 'yes', 'y') && !compilerOnly
 
-  // No evidence → one target (the agent we would run), not all four. Interactive
-  // multi-select starts empty so the user opts in rather than opting out.
-  const fallbackOne = ((): string[] => {
-    const a = detectAgent()
-    return a === 'local' ? ['claude'] : a === 'copilot' || a === 'cursor' || a === 'codex' || a === 'claude' ? [a] : ['claude']
-  })()
-  let targets = detected.length > 0 ? detected : fallbackOne
+  let targets = detected.length > 0 ? detected : ['claude', 'copilot', 'cursor', 'codex']
   let agent = detectAgent()
   let tracker = detectTracker()
 
@@ -268,9 +257,8 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
           { value: 'cursor', label: 'Cursor', note: '.cursor/rules/' },
           { value: 'codex', label: 'Codex', note: 'AGENTS.md' },
         ],
-        [],
+        targets,
       )
-      if (targets.length === 0) targets = fallbackOne
     }
 
     agent = await selectOne(
@@ -403,8 +391,7 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
 
   info('')
   info('Next:')
-  info('  ' + c.bold('ctxmux advise') + c.dim('                 review the rules; no key, no network'))
-  info('  ' + c.bold('ctxmux sync --explain') + c.dim('        what each agent cannot represent'))
-  info('  ' + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim('   optional later: see what a task would do'))
+  info('  ' + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim('   see what it would do, for free'))
+  info('  ' + c.bold('ctxmux doctor') + c.dim('                              check for anything that will fail silently'))
   return 0
 }

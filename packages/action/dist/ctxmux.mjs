@@ -12961,7 +12961,25 @@ function parseGlobs(value) {
   }
   return [];
 }
-function detectTargets(provenance) {
+async function detectTargets(root) {
+  const found = /* @__PURE__ */ new Set();
+  const exists3 = async (rel) => {
+    try {
+      await fs4.access(path4.join(root, rel));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (await exists3(".claude") || await exists3("CLAUDE.md")) found.add("claude");
+  if (await exists3(".github/copilot-instructions.md") || await exists3(".github/instructions")) {
+    found.add("copilot");
+  }
+  if (await exists3(".cursor")) found.add("cursor");
+  if (await exists3("AGENTS.md")) found.add("codex");
+  return [...found];
+}
+function detectTargetsFromProvenance(provenance) {
   const found = /* @__PURE__ */ new Set();
   for (const { from } of provenance) {
     if (from.startsWith(".github/")) found.add("copilot");
@@ -13240,10 +13258,10 @@ ${f.body}`).join("\n\n---\n\n");
       hint: "Run `ctxmux init` to scaffold a starter .ctxmux/ directory instead."
     });
   }
-  const detected = detectTargets(provenance);
+  const detected = await detectTargets(root);
   const configPath = path4.join(root, sourceDir, "config.json");
   const configExists = await read(configPath).then((c2) => c2 !== null);
-  if (!configExists && detected.length > 0 && detected.length < 4) {
+  if (!configExists && files.length > 0 && detected.length > 0 && detected.length < 4) {
     files.push({
       path: path4.join(sourceDir, "config.json"),
       content: JSON.stringify({ targets: detected }, null, 2) + "\n"
@@ -13481,6 +13499,7 @@ __export(src_exports, {
   cursorCompiler: () => cursorCompiler,
   detectDrift: () => detectDrift,
   detectTargets: () => detectTargets,
+  detectTargetsFromProvenance: () => detectTargetsFromProvenance,
   findCollisions: () => findCollisions,
   formatDiagnostics: () => formatDiagnostics,
   hashContent: () => hashContent,
@@ -18818,7 +18837,7 @@ jobs:
           # copilot delegates to GitHub's cloud agent, which opens its own pull request. A
           # driven agent (claude) works in a worktree on this runner instead, so it needs
           # \`--open-pr\` below \u2014 without it the runner is destroyed with the work still on it.
-          agent: copilot
+          agent: ${ctx.agent ?? "copilot"}
           # Detected from this repository's layout. Narrow it further if a task should not
           # reach all of these.
           allow: '${allow}'
@@ -18986,13 +19005,13 @@ function hasGitRemote(root) {
   });
 }
 async function reviewWhatIsThere(root, asked) {
-  const { findings, hadFileList } = await advise(root);
+  const { findings, hadFileList, checked } = await advise(root);
   if (findings.length === 0) {
-    if (asked) {
-      info("");
-      success("Nothing to say about the rules themselves.");
-      if (!hadFileList) hintNoGit();
-    }
+    info("");
+    success(
+      asked ? "Nothing to say about the rules themselves." : `advise: clean (${checked || "nothing to check"})`
+    );
+    if (!hadFileList) hintNoGit();
     return;
   }
   renderAdvice(findings);
@@ -19004,6 +19023,7 @@ async function initCommand(args) {
   const root = flagString(args, "root") ?? process.cwd();
   const force = flagBool(args, "force", "f");
   const wantAdvice = flagBool(args, "advise");
+  const compilerOnly = flagBool(args, "compiler-only");
   const dir = path13.join(root, ".ctxmux");
   const already = await fs11.access(dir).then(() => true).catch(() => false);
   if (already && !force) {
@@ -19024,7 +19044,15 @@ async function initCommand(args) {
     info("");
     warn(note);
   }
-  const imported = already ? null : await importContext(root).catch(() => null);
+  let imported = null;
+  if (!already) {
+    try {
+      imported = await importContext(root);
+    } catch (e) {
+      warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
+      info("    " + c.dim("Continuing with a starter pack."));
+    }
+  }
   const foundExisting = (imported?.provenance.length ?? 0) > 0;
   const written = [];
   if (foundExisting && imported) {
@@ -19037,6 +19065,13 @@ async function initCommand(args) {
     if (imported.provenance.length > 8) {
       info(c.dim(`    ...and ${imported.provenance.length - 8} more`));
     }
+    if (imported.diagnostics.length > 0) {
+      heading("Review these");
+      for (const d of imported.diagnostics) {
+        warn(`${d.file ? d.file + ": " : ""}${d.message}`);
+        if (d.hint) info("    " + c.dim(d.hint));
+      }
+    }
   }
   for (const file of foundExisting ? [] : starterFiles(profile)) {
     const abs = path13.join(root, file.path);
@@ -19045,9 +19080,13 @@ async function initCommand(args) {
     await writeFileAtomic(abs, file.content);
     written.push(file.path);
   }
-  const detected = imported ? detectTargets(imported.provenance) : [];
-  const askable = interactive() && !flagBool(args, "yes", "y");
-  let targets = detected.length > 0 ? detected : ["claude", "copilot", "cursor", "codex"];
+  const detected = await detectTargets(root);
+  const askable = interactive() && !flagBool(args, "yes", "y") && !compilerOnly;
+  const fallbackOne = (() => {
+    const a = detectAgent();
+    return a === "local" ? ["claude"] : a === "copilot" || a === "cursor" || a === "codex" || a === "claude" ? [a] : ["claude"];
+  })();
+  let targets = detected.length > 0 ? detected : fallbackOne;
   let agent = detectAgent();
   let tracker = detectTracker();
   if (askable) {
@@ -19060,8 +19099,9 @@ async function initCommand(args) {
           { value: "cursor", label: "Cursor", note: ".cursor/rules/" },
           { value: "codex", label: "Codex", note: "AGENTS.md" }
         ],
-        targets
+        []
       );
+      if (targets.length === 0) targets = fallbackOne;
     }
     agent = await selectOne(
       "Which agent should run tasks?",
@@ -19083,9 +19123,10 @@ async function initCommand(args) {
       tracker
     );
   }
+  const config = compilerOnly ? { targets, provenance: true } : { targets, agent, tracker };
   await writeFileAtomic(
     path13.join(root, ".ctxmux", "config.json"),
-    JSON.stringify({ targets, agent, tracker }, null, 2) + "\n"
+    JSON.stringify(config, null, 2) + "\n"
   );
   if (!written.includes(".ctxmux/config.json")) written.push(".ctxmux/config.json");
   const ignored = await ensureGitignore(root);
@@ -19096,7 +19137,7 @@ async function initCommand(args) {
     hasRemote: await hasGitRemote(root)
   };
   const workflows = [];
-  if (!flagBool(args, "no-workflows")) {
+  if (!compilerOnly && !flagBool(args, "no-workflows")) {
     for (const file of workflowFiles(ctx)) {
       const abs = path13.join(root, file.path);
       if (await fs11.access(abs).then(() => true, () => false)) continue;
@@ -19117,7 +19158,7 @@ async function initCommand(args) {
   }
   info("");
   success(
-    `${written.length + workflows.length} file(s) written, ${generated.length} compiled. Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`
+    compilerOnly ? `${written.length + workflows.length} file(s) written, ${generated.length} compiled.` : `${written.length + workflows.length} file(s) written, ${generated.length} compiled. Tasks will run through ${c.bold(agent)} from ${c.bold(tracker)}.`
   );
   if (report2.records.some((r) => r.status === "drift")) {
     info("");

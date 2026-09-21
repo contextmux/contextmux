@@ -113,11 +113,16 @@ function hasGitRemote(root: string): Promise<boolean> {
  * but somebody who typed `--advise` cannot tell that silence apart from a flag that did
  * nothing, so they get an answer either way.
  */
-async function reviewWhatIsThere(root: string, _asked: boolean): Promise<void> {
+async function reviewWhatIsThere(root: string, asked: boolean): Promise<void> {
   const { findings, hadFileList, checked } = await advise(root)
   if (findings.length === 0) {
     info('')
-    success(`advise: clean (${checked || 'nothing to check'})`)
+    // `--advise` must not look like a no-op; plain init already prints enough.
+    success(
+      asked
+        ? 'Nothing to say about the rules themselves.'
+        : `advise: clean (${checked || 'nothing to check'})`,
+    )
     if (!hadFileList) hintNoGit()
     return
   }

@@ -403,7 +403,8 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
 
   info('')
   info('Next:')
-  info('  ' + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim('   see what it would do, for free'))
-  info('  ' + c.bold('ctxmux doctor') + c.dim('                              check for anything that will fail silently'))
+  info('  ' + c.bold('ctxmux advise') + c.dim('                 review the rules; no key, no network'))
+  info('  ' + c.bold('ctxmux sync --explain') + c.dim('        what each agent cannot represent'))
+  info('  ' + c.bold('ctxmux run "add a date helper" --dry-run') + c.dim('   optional later: see what a task would do'))
   return 0
 }

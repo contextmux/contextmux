@@ -225,6 +225,7 @@ describe('reading a repository from a git remote', () => {
 
 describe('where the repository came from', () => {
   it('falls back to the git remote when gh cannot answer', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'stub-token-for-test')
     // The fixture's remote names a repository that does not exist, so `gh repo view` fails and
     // the remote is used. Exercises the fallback; the preference for gh over the remote is what
     // the next test covers, and only the real thing can prove the rename case.
@@ -258,6 +259,7 @@ describe('where the repository came from', () => {
 
 
   it('prefers what was passed over anything it could work out', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'stub-token-for-test')
     await resolveAgent({ ...opts(), agent: 'copilot', repo: 'acme/widgets' })
 
     expect(lastRepo).toBe('acme/widgets')
@@ -265,6 +267,7 @@ describe('where the repository came from', () => {
   })
 
   it('records that a value came from the environment rather than detection', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'stub-token-for-test')
     process.env['CTXMUX_REPO'] = 'acme/from-env'
     try {
       await resolveAgent({ ...opts(), agent: 'copilot' })

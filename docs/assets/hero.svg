@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" role="img" aria-labelledby="title desc">
+  <title id="title">One rules source compiled to many agents</title>
+  <desc id="desc">.ctxmux/ flows through ctxmux sync into CLAUDE.md, Copilot, Cursor, and AGENTS.md</desc>
+  <defs>
+    <linearGradient id="srcFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a2332"/>
+      <stop offset="100%" stop-color="#243044"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .label { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; fill: #e8eef7; font-size: 13px; font-weight: 600; }
+      .sub { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; fill: #9aa8bc; font-size: 11px; font-weight: 500; }
+      .chip { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #d6e0ee; font-size: 12px; font-weight: 600; }
+      .wire { fill: none; stroke: #5b6b82; stroke-width: 1.75; stroke-linecap: round; }
+      .pulse { fill: #6eb6ff; }
+      .card { fill: #1b2433; stroke: #3a4a61; stroke-width: 1.25; }
+      .src { fill: url(#srcFill); stroke: #6eb6ff; stroke-width: 1.5; }
+      @media (prefers-reduced-motion: reduce) {
+        .pulse, .fade { display: none; }
+      }
+    </style>
+  </defs>
+
+  <rect width="720" height="280" rx="16" fill="#0f141c"/>
+
+  <!-- source -->
+  <g filter="url(#soft)">
+    <rect class="src" x="48" y="96" width="150" height="88" rx="12"/>
+  </g>
+  <text class="label" x="123" y="132" text-anchor="middle">.ctxmux/</text>
+  <text class="sub" x="123" y="152" text-anchor="middle">one source</text>
+  <text class="sub" x="123" y="168" text-anchor="middle">you write</text>
+
+  <!-- sync node -->
+  <g filter="url(#soft)">
+    <rect class="card" x="268" y="114" width="120" height="52" rx="10"/>
+  </g>
+  <text class="chip" x="328" y="145" text-anchor="middle">ctxmux sync</text>
+
+  <!-- targets -->
+  <g filter="url(#soft)">
+    <rect class="card" x="500" y="28" width="172" height="42" rx="10"/>
+    <rect class="card" x="500" y="88" width="172" height="42" rx="10"/>
+    <rect class="card" x="500" y="148" width="172" height="42" rx="10"/>
+    <rect class="card" x="500" y="208" width="172" height="42" rx="10"/>
+  </g>
+  <text class="chip" x="586" y="54" text-anchor="middle">CLAUDE.md</text>
+  <text class="chip" x="586" y="114" text-anchor="middle">.github/copilot…</text>
+  <text class="chip" x="586" y="174" text-anchor="middle">.cursor/rules/</text>
+  <text class="chip" x="586" y="234" text-anchor="middle">AGENTS.md</text>
+
+  <!-- wires -->
+  <path class="wire" id="w0" d="M198 140 H268"/>
+  <path class="wire" id="w1" d="M388 140 C440 140, 460 49, 500 49"/>
+  <path class="wire" id="w2" d="M388 140 C440 140, 460 109, 500 109"/>
+  <path class="wire" id="w3" d="M388 140 C440 140, 460 169, 500 169"/>
+  <path class="wire" id="w4" d="M388 140 C440 140, 460 229, 500 229"/>
+
+  <!-- pulses along paths (SMIL) -->
+  <circle class="pulse" r="3.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="2.4s" begin="0s" repeatCount="indefinite"/>
+    <animateMotion dur="2.4s" begin="0s" repeatCount="indefinite" path="M198 140 H268"/>
+  </circle>
+  <circle class="pulse" r="3.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="2.4s" begin="0.35s" repeatCount="indefinite"/>
+    <animateMotion dur="2.4s" begin="0.35s" repeatCount="indefinite" path="M388 140 C440 140, 460 49, 500 49"/>
+  </circle>
+  <circle class="pulse" r="3.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="2.4s" begin="0.55s" repeatCount="indefinite"/>
+    <animateMotion dur="2.4s" begin="0.55s" repeatCount="indefinite" path="M388 140 C440 140, 460 109, 500 109"/>
+  </circle>
+  <circle class="pulse" r="3.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="2.4s" begin="0.75s" repeatCount="indefinite"/>
+    <animateMotion dur="2.4s" begin="0.75s" repeatCount="indefinite" path="M388 140 C440 140, 460 169, 500 169"/>
+  </circle>
+  <circle class="pulse" r="3.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="2.4s" begin="0.95s" repeatCount="indefinite"/>
+    <animateMotion dur="2.4s" begin="1.15s" repeatCount="indefinite" path="M388 140 C440 140, 460 229, 500 229"/>
+  </circle>
+
+  <!-- target fade-in accents -->
+  <g class="fade" opacity="0.35">
+    <rect x="500" y="28" width="172" height="42" rx="10" fill="none" stroke="#6eb6ff" stroke-width="1.5">
+      <animate attributeName="opacity" values="0.15;0.7;0.15" dur="2.4s" begin="0.9s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="500" y="88" width="172" height="42" rx="10" fill="none" stroke="#6eb6ff" stroke-width="1.5">
+      <animate attributeName="opacity" values="0.15;0.7;0.15" dur="2.4s" begin="1.1s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="500" y="148" width="172" height="42" rx="10" fill="none" stroke="#6eb6ff" stroke-width="1.5">
+      <animate attributeName="opacity" values="0.15;0.7;0.15" dur="2.4s" begin="1.3s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="500" y="208" width="172" height="42" rx="10" fill="none" stroke="#6eb6ff" stroke-width="1.5">
+      <animate attributeName="opacity" values="0.15;0.7;0.15" dur="2.4s" begin="1.5s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <text class="sub" x="360" y="268" text-anchor="middle">write once · compile to the agents you use · nothing for the rest</text>
+</svg>

@@ -375,9 +375,9 @@ export async function initCommand(args: ParsedArgs): Promise<number> {
 
     info('')
     if (outstanding.length === 0) {
-      success('Everything the workflow needs is already set.')
+      success('Everything the run and review workflows need is already set.')
     } else {
-      warn('Before the workflow can run:')
+      warn('Before the run and review workflows can work — check needs none of this:')
       for (const step of outstanding) {
         info('')
         bullet(step.what)

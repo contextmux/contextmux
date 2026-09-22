@@ -6,7 +6,7 @@
  * an unavailable binary should say so plainly, not surface as a confusing failure three
  * layers down once a run is already underway.
  */
-import type { CodingAgent, Tracker } from '@contextmux/core'
+import type { CodingAgent, Notifier, Tracker } from '@contextmux/core'
 import { claudeAgent } from '@contextmux/agent-claude'
 import { copilotAgent } from '@contextmux/agent-copilot'
 import { cursorAgent } from '@contextmux/agent-cursor'
@@ -17,6 +17,8 @@ import { GitHubForge, parseRepo, resolveClient, type RepoRef } from '@contextmux
 import { FileTracker } from '@contextmux/tracker-file'
 import { GitHubTracker } from '@contextmux/tracker-github'
 import { HttpJira, JiraTracker } from '@contextmux/tracker-jira'
+import { slackNotifier } from '@contextmux/notifier-slack'
+import { teamsNotifier } from '@contextmux/notifier-teams'
 
 export type AgentName = 'claude' | 'copilot' | 'cursor' | 'codex' | 'local'
 
@@ -311,6 +313,22 @@ export async function resolveTracker(opts: ResolveOptions): Promise<Tracker> {
     default:
       throw new ConfigError(`Unknown tracker "${name}".`, 'Valid trackers are: file, github, jira.')
   }
+}
+
+/**
+ * Whichever notifiers have a webhook configured, zero to two of them.
+ *
+ * Unlike an agent or a tracker, there is nothing to choose between — a run that escalates is
+ * worth telling everyone who is listening, not one channel picked over another. Configuring
+ * neither variable is a normal, silent choice: nothing here is required for `run` to work.
+ */
+export function resolveNotifiers(): Notifier[] {
+  const notifiers: Notifier[] = []
+  const slackWebhook = env('SLACK_WEBHOOK_URL')
+  if (slackWebhook) notifiers.push(slackNotifier({ webhookUrl: slackWebhook }))
+  const teamsWebhook = env('TEAMS_WEBHOOK_URL')
+  if (teamsWebhook) notifiers.push(teamsNotifier({ webhookUrl: teamsWebhook }))
+  return notifiers
 }
 
 /**

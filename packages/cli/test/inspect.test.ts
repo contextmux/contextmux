@@ -90,6 +90,21 @@ describe('status', () => {
     expect(text).toContain('needs a decision')
     expect(text).toContain('1 run(s) waiting on you')
   })
+
+  it('breaks the total down by outcome, so the shape is visible before the list is', async () => {
+    // "is this mostly working" is a different question from "what happened to T-482", and a
+    // list of individually-badged runs answers only the second one.
+    await recordRun({ id: 'run-T-1', state: 'completed' })
+    await recordRun({ id: 'run-T-2', state: 'completed' })
+    await recordRun({ id: 'run-T-3', state: 'escalated' })
+    await recordRun({ id: 'run-T-4', state: 'rejected' })
+
+    const { text } = await runCli(statusCommand, argv(root, 'status'))
+
+    expect(text).toContain('2 completed')
+    expect(text).toContain('1 needs human')
+    expect(text).toContain('1 rejected')
+  })
 })
 
 describe('trace', () => {

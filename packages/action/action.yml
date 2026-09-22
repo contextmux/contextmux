@@ -69,6 +69,12 @@ inputs:
   anthropic-api-key:
     description: 'API key for the claude agent.'
     required: false
+  slack-webhook:
+    description: 'Slack incoming webhook URL. Alerted when a run escalates or fails.'
+    required: false
+  teams-webhook:
+    description: 'Microsoft Teams workflow webhook URL. Alerted when a run escalates or fails.'
+    required: false
 
 outputs:
   state:
@@ -98,6 +104,8 @@ runs:
         JIRA_EMAIL: ${{ inputs.jira-email }}
         JIRA_API_TOKEN: ${{ inputs.jira-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook }}
+        TEAMS_WEBHOOK_URL: ${{ inputs.teams-webhook }}
         CTXMUX_REPO: ${{ inputs.repo || github.repository }}
         CTXMUX_AGENT: ${{ inputs.agent }}
         CTXMUX_TRACKER: ${{ inputs.tracker }}

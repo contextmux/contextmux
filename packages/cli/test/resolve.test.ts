@@ -9,7 +9,16 @@ import { promises as fs } from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AGENT_NAMES, ConfigError, resolveAgent, resolveTracker, repoFromRemote, lastRepo, lastRepoSource } from '../src/resolve.js'
+import {
+  AGENT_NAMES,
+  ConfigError,
+  resolveAgent,
+  resolveNotifiers,
+  resolveTracker,
+  repoFromRemote,
+  lastRepo,
+  lastRepoSource,
+} from '../src/resolve.js'
 import { makeRepo, removeRepo, useIsolatedEnv, initGitWithRemote } from './helpers.js'
 
 useIsolatedEnv()
@@ -177,6 +186,28 @@ describe('resolving a tracker', () => {
 
     expect(err).toBeInstanceOf(ConfigError)
     expect((err as ConfigError).hint).toContain('--repo')
+  })
+})
+
+describe('resolving notifiers', () => {
+  it('configures none when neither webhook is set', () => {
+    expect(resolveNotifiers()).toEqual([])
+  })
+
+  it('configures Slack alone when only its webhook is set', () => {
+    vi.stubEnv('SLACK_WEBHOOK_URL', 'https://hooks.slack.com/services/x')
+    expect(resolveNotifiers().map((n) => n.id)).toEqual(['slack'])
+  })
+
+  it('configures Teams alone when only its webhook is set', () => {
+    vi.stubEnv('TEAMS_WEBHOOK_URL', 'https://x.webhook.office.com/y')
+    expect(resolveNotifiers().map((n) => n.id)).toEqual(['teams'])
+  })
+
+  it('configures both when both webhooks are set — there is nothing to choose between', () => {
+    vi.stubEnv('SLACK_WEBHOOK_URL', 'https://hooks.slack.com/services/x')
+    vi.stubEnv('TEAMS_WEBHOOK_URL', 'https://x.webhook.office.com/y')
+    expect(resolveNotifiers().map((n) => n.id).sort()).toEqual(['slack', 'teams'])
   })
 })
 

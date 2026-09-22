@@ -12,7 +12,7 @@ const root = path.dirname(fileURLToPath(import.meta.url))
  * does not use. Aliasing to source also means a change is tested without rebuilding first.
  */
 const PACKAGES = [
-  'core', 'council', 'prompt', 'trajectory', 'context', 'repo', 'forge-github', 'runner-local', 'agent-cli', 'tracker-file', 'tracker-github', 'tracker-jira', 'agent-claude', 'agent-copilot', 'agent-cursor', 'agent-codex', 'agent-local', 'eval', 'learn', 'handoff', 'mcp-repo', 'cli',
+  'core', 'council', 'prompt', 'trajectory', 'context', 'repo', 'forge-github', 'runner-local', 'agent-cli', 'tracker-file', 'tracker-github', 'tracker-jira', 'agent-claude', 'agent-copilot', 'agent-cursor', 'agent-codex', 'agent-local', 'eval', 'learn', 'handoff', 'mcp-repo', 'notifier-slack', 'notifier-teams', 'cli',
 ]
 
 export default defineConfig({

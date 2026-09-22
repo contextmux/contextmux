@@ -181,7 +181,15 @@ describe('ctxmux plan, given something that already exists', () => {
     expect(code).toBe(0)
     expect(text).toContain('Bridged T-1 (file) to 12 on GitHub')
     expect(text).toContain('ctxmux run 12 --tracker github --agent codex')
-    expect(requests.some((r) => r.url.endsWith('/issues') && r.body)).toBe(true)
+
+    // The bridged issue is the artefact `run` would actually send, not a raw copy of the
+    // source ticket's body — same rendering `renderPrompt` does for a real dispatch.
+    const createCall = requests.find((r) => r.url.endsWith('/issues') && r.body)
+    expect(createCall).toBeTruthy()
+    const sent = JSON.parse(createCall!.body!)
+    expect(sent.body).toContain('# Task: Add a currency formatter')
+    expect(sent.body).toContain('Format a ratio as a percentage.')
+    expect(sent.body).not.toBe('Format a ratio as a percentage.')
   })
 
   it('bridges an existing task to GitHub when the target agent is Copilot', async () => {

@@ -1,7 +1,7 @@
 {
-  "name": "@contextmux/learn",
+  "name": "@contextmux/notifier-teams",
   "version": "0.5.0",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides turn what agents got wrong into proposed edits to your context.",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides Microsoft Teams as a contextmux notifier.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,9 +24,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@contextmux/core": "workspace:*",
-    "@contextmux/context": "workspace:*",
-    "@contextmux/trajectory": "workspace:*"
+    "@contextmux/core": "workspace:*"
   },
   "publishConfig": {
     "access": "public"
@@ -34,7 +32,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/contextmux/contextmux.git",
-    "directory": "packages/learn"
+    "directory": "packages/notifier-teams"
   },
   "homepage": "https://github.com/contextmux/contextmux#readme",
   "bugs": {

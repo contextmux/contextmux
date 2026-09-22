@@ -197,6 +197,9 @@ export async function doctorCommand(args: ParsedArgs): Promise<number> {
   for (const name of workflowNames.filter((n) => /\.ya?ml$/.test(n))) {
     const body = await fs.readFile(path.join(workflowDir, name), 'utf8').catch(() => '')
     if (!body.includes(WORKFLOW_MARKER)) continue
+    // `check` has no features that evolve the way share-state did for run/review — it reads
+    // .ctxmux/ and reports, nothing more, so there is nothing here worth comparing it against.
+    if (body.includes('command: check')) continue
 
     const missing = WORKFLOW_FEATURES.filter((feature) => !body.includes(feature))
     if (missing.length === 0) {

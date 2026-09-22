@@ -1,6 +1,6 @@
 {
   "name": "contextmux",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Compile one source of coding rules to CLAUDE.md, AGENTS.md, .cursor/rules and copilot-instructions \u2014 then run tasks through an agent under gates.",
   "license": "Apache-2.0",
   "type": "module",
@@ -43,6 +43,8 @@
     "@contextmux/forge-github": "workspace:*",
     "@contextmux/handoff": "workspace:*",
     "@contextmux/learn": "workspace:*",
+    "@contextmux/notifier-slack": "workspace:*",
+    "@contextmux/notifier-teams": "workspace:*",
     "@contextmux/prompt": "workspace:*",
     "@contextmux/repo": "workspace:*",
     "@contextmux/runner-local": "workspace:*",

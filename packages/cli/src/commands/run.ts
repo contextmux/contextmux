@@ -24,6 +24,7 @@ import {
   type EngineEvent,
   type Gate,
   type AgentResult,
+  type Notifier,
   type Run,
   type RunState,
   type TaskSpec,
@@ -31,7 +32,16 @@ import {
 import { renderPrompt } from '@contextmux/prompt'
 import { LocalRunner } from '@contextmux/runner-local'
 import { inlineTask } from '@contextmux/tracker-file'
-import { ConfigError, resolveAgent, resolveTracker, resolvePublishTarget, lastRepo, lastRepoSource } from '../resolve.js'
+import {
+  ConfigError,
+  resolveAgent,
+  resolveTracker,
+  resolveNotifiers,
+  resolvePublishTarget,
+  lastRepo,
+  lastRepoSource,
+} from '../resolve.js'
+import { parseBridgeLabel } from '../bridge.js'
 import { loadContext, writeFileAtomic } from '@contextmux/context'
 import { buildIndex, detectProfile, type RepoIndex } from '@contextmux/repo'
 import {
@@ -63,6 +73,96 @@ async function writeTrace(
   await writeFileAtomic(
     path.join(traceDir, `${encodeURIComponent(runId)}.json`),
     JSON.stringify(trajectory.toJSON(), null, 2),
+  )
+}
+
+/** States worth reporting back to a bridged task's source ticket. Anything still in progress is not. */
+const REPORTABLE_STATES: RunState[] = ['completed', 'escalated', 'failed', 'rejected', 'in_review']
+
+const REPORT_VERB: Partial<Record<RunState, string>> = {
+  completed: 'completed',
+  escalated: 'escalated to a human',
+  failed: 'failed',
+  rejected: 'rejected at the gates',
+  in_review: 'awaiting review',
+}
+
+/**
+ * What to tell a bridged task's source ticket, or null when there is nothing to bridge or
+ * nothing yet worth reporting. Pure and exported so the decision — which states are reportable,
+ * how each reads, whether a pull request url is included — is testable on its own, apart from
+ * the network calls the caller below makes with the result.
+ */
+export function bridgeOutcomeMessage(task: TaskSpec, run: Run): { bridge: { tracker: string; id: string }; body: string } | null {
+  if (!REPORTABLE_STATES.includes(run.state)) return null
+  const bridge = parseBridgeLabel(task.labels)
+  if (!bridge) return null
+
+  const prUrl = run.result?.location?.prUrl
+  const issueUrl = task.origin.url ?? `issue ${task.origin.id}`
+  const body = [
+    `The bridged GitHub issue (${issueUrl}) is ${REPORT_VERB[run.state] ?? run.state}.`,
+    ...(prUrl ? [prUrl] : []),
+  ].join('\n')
+
+  return { bridge, body }
+}
+
+/**
+ * Tell a bridged task's source ticket what happened, once the run has a state worth reporting.
+ *
+ * `plan` bridges a task by opening a GitHub issue and marking it with where it came from;
+ * nothing before this read that marker back. Without it, a Jira ticket bridged for review sits
+ * unchanged forever — the mirrored issue gets every update this command already makes, and the
+ * ticket somebody is actually watching gets none of them.
+ *
+ * Best-effort: the source tracker's credentials are not guaranteed to be configured wherever
+ * `run` executes — often CI, and often for a tracker other than the one this task came from —
+ * and a run that otherwise succeeded should not read as failed because a courtesy comment could
+ * not be posted.
+ */
+async function reportBridgeOutcome(
+  task: TaskSpec,
+  run: Run,
+  resolveOptions: Parameters<typeof resolveTracker>[0],
+): Promise<void> {
+  const outcome = bridgeOutcomeMessage(task, run)
+  if (!outcome) return
+
+  try {
+    const source = await resolveTracker({ ...resolveOptions, tracker: outcome.bridge.tracker })
+    await source.comment(outcome.bridge.id, outcome.body)
+  } catch (err) {
+    warn(
+      `Could not report back to ${outcome.bridge.id} on the ${outcome.bridge.tracker} tracker: ` +
+        `${(err as Error).message}`,
+    )
+  }
+}
+
+/**
+ * Push an alert for the two states worth interrupting someone over.
+ *
+ * `completed` and `in_review` are good news, or at worst routine — nobody needs paging for
+ * those, and `ctxmux status` already answers "did it work" for whoever goes looking. `rejected`
+ * is a task that was not ready, which is common and expected of a ticket somebody just filed,
+ * not an incident. `escalated` and `failed` are the two outcomes where a run stopped and is now
+ * waiting on a human who does not know it is waiting — the entire reason `Notifier` exists.
+ */
+export async function notifyOutcome(notifiers: Notifier[], task: TaskSpec, run: Run): Promise<void> {
+  if (notifiers.length === 0) return
+  if (run.state !== 'escalated' && run.state !== 'failed') return
+
+  const level = run.state === 'escalated' ? 'warn' : 'error'
+  const title = `${task.id} ${run.state === 'escalated' ? 'needs a human' : 'failed'}`
+  const body = [run.terminalReason?.split('\n')[0], task.origin.url].filter(Boolean).join('\n')
+
+  await Promise.all(
+    notifiers.map((notifier) =>
+      notifier.send({ level, title, body, runId: run.id }).catch((err: unknown) => {
+        warn(`Could not notify via ${notifier.id}: ${(err as Error).message}`)
+      }),
+    ),
   )
 }
 
@@ -851,6 +951,11 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     // "is there still anything here to look at".
     const worktree = runner.location().worktree ?? null
 
+    if (!dryRun) {
+      await reportBridgeOutcome(task, run, resolveOptions)
+      await notifyOutcome(resolveNotifiers(), task, run)
+    }
+
     /*
      * A run whose work could not be published did not succeed.
      *
@@ -933,6 +1038,25 @@ export async function statusCommand(args: ParsedArgs): Promise<number> {
   }
 
   heading(`Runs (${runs.length})`)
+
+  /*
+   * The shape of what happened, before the list of individual runs.
+   *
+   * A list of fifty runs answers "what happened to T-482" and nothing else — the question
+   * worth asking after a week of use is closer to "is this mostly working", which means counts
+   * by outcome, not another pass over the same list a human would have to tally by eye.
+   */
+  const stateOrder: RunState[] = ['completed', 'in_review', 'escalated', 'rejected', 'failed']
+  const counted = new Map<string, number>()
+  for (const run of runs) counted.set(run.state, (counted.get(run.state) ?? 0) + 1)
+  const breakdown = [
+    ...stateOrder.filter((s) => counted.has(s)),
+    ...[...counted.keys()].filter((s) => !stateOrder.includes(s as RunState)),
+  ]
+    .map((s) => `${counted.get(s)} ${badge[s] ?? s}`)
+    .join(c.dim(' · '))
+  if (breakdown) info(breakdown)
+
   for (const run of runs) {
     const state = badge[run.state] ?? run.state
     const cost = run.result?.usage?.costUsd

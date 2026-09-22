@@ -119,6 +119,13 @@ when it imported config you already had. `init --advise` asks for the report exp
 `doctor` checks the plumbing. `advise` reads the rules (no network, no cost, exits zero). Two
 commands do cost money and are opt-in — see [Paid advise](#paid-advise-opt-in) below the fold.
 
+`init` also scaffolds three workflows into `.github/workflows/` when there is a remote to run
+against (`--no-workflows` to skip): `ctxmux-run.yml` and `ctxmux-review.yml` — inert until you
+set the `CTXMUX_ENABLED` repository variable, since they spend money and write to the repository
+the moment they fire — and `ctxmux-check.yml`, which is not gated at all, because it only ever
+reads `.ctxmux/` and reports; there is nothing in it to opt into. All three are yours to edit
+once written; none of them regenerate.
+
 ### 5. Undo it, or keep it
 
 ```bash
@@ -227,6 +234,13 @@ agent like `codex` as for `copilot`, whose coding agent has no other way to rece
 for Copilot, bridging is not a convenience, it is the only path there is. Naming no agent, or one
 where the task is already on GitHub, leaves it alone and just tells you it is ready to `run`.
 
+The bridge is not one-way. `plan` comments on the source ticket with a link to the mirrored
+issue as soon as it opens one, and `run` reports back to that same ticket when the bridged issue
+reaches a result worth knowing about — completed, escalated, rejected, or awaiting review. A
+Jira ticket bridged this way stays current without anyone needing to remember to update it by
+hand, wherever `run` ends up executing (typically CI, and not necessarily the machine `plan` ran
+on).
+
 | Flag | Meaning |
 | --- | --- |
 | `--tracker <name>` | Where the task is (or will be created): `file` *(default)*, `github` or `jira` (jira also needs `JIRA_PROJECT_KEY`) |
@@ -253,7 +267,7 @@ ctxmux run "add a helper that formats a ratio as a percentage" --allow 'src/**'
 ```
 
 ```bash
-ctxmux status          # every run, with a cost per run and a total
+ctxmux status          # a breakdown by outcome, then every run, with a cost per run and a total
 ctxmux trace T-1       # the steps the agent took, and any smells in them
 ```
 
@@ -322,6 +336,22 @@ one that already has a key. `JIRA_ISSUE_TYPE` defaults to `Task`.
 | `escalated — needs a human` | `ctxmux status` shows why. |
 | `already finished (rejected) and the task is unchanged` | `rm .ctxmux/state/runs/run-<TASK>.json`, or change the task. |
 
+### Getting notified
+
+`ctxmux status` answers "what happened" for whoever goes looking; a `Notifier` answers it for
+whoever isn't. Set either (or both — there is nothing to choose between them, so both configured
+means both notified) and a run that escalates or fails posts there without anyone needing to
+poll:
+
+```bash
+export SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'   # Slack incoming webhook
+export TEAMS_WEBHOOK_URL='https://....webhook.office.com/...'     # Teams workflow webhook
+```
+
+Only `escalated` and `failed` alert — `rejected` is a routine "this ticket was not ready" and
+`completed`/`in_review` are good news, neither worth interrupting anyone over. In a GitHub
+Action, pass `slack-webhook` / `teams-webhook` instead of setting the environment directly.
+
 ### Paid advise (opt-in)
 
 ```bash
@@ -363,19 +393,22 @@ settings.
 
 The CLI is `contextmux`. Libraries include `@contextmux/context`, `@contextmux/repo`,
 `@contextmux/mcp-repo`, `@contextmux/core`, `@contextmux/runner-local`, `@contextmux/agent-*`,
-`@contextmux/tracker-*`, `@contextmux/forge-github`, and `@contextmux/eval` / `learn` /
-`trajectory` / `handoff` / `council`. Every adapter passes the same published contract suite.
+`@contextmux/tracker-*`, `@contextmux/notifier-*`, `@contextmux/forge-github`, and
+`@contextmux/eval` / `learn` / `trajectory` / `handoff` / `council`. Every adapter passes the
+same published contract suite.
 
 ## What it accesses, and why
 
 **Runs:** `git`, and the agent CLI you configure; `gh` when no token is set.
 
-**Contacts:** `api.github.com`, and the Jira site you configure. Nothing else. No telemetry.
+**Contacts:** `api.github.com`, the Jira site you configure, and — only if you set one — the
+Slack or Teams webhook URL you configure. Nothing else. No telemetry.
 
 **Reads** (by name): `ANTHROPIC_API_KEY`; `GITHUB_TOKEN` / `GH_TOKEN`; `JIRA_URL` /
-`JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` / `JIRA_ISSUE_TYPE`; `CTXMUX_REPO` /
-`CTXMUX_AGENT` / `CTXMUX_TRACKER`; GitHub Action vars; `CTXMUX_ROOT`; `OLLAMA_HOST` /
-`CTXMUX_LOCAL_MODEL`; optional OTEL endpoints; `NO_COLOR` / `TERM` / `CTXMUX_DEBUG`.
+`JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` / `JIRA_ISSUE_TYPE`; `SLACK_WEBHOOK_URL` /
+`TEAMS_WEBHOOK_URL`; `CTXMUX_REPO` / `CTXMUX_AGENT` / `CTXMUX_TRACKER`; GitHub Action vars;
+`CTXMUX_ROOT`; `OLLAMA_HOST` / `CTXMUX_LOCAL_MODEL`; optional OTEL endpoints; `NO_COLOR` /
+`TERM` / `CTXMUX_DEBUG`.
 
 **Writes:** `.ctxmux/`, generated agent files, and a git worktree under system temp.
 
@@ -389,12 +422,15 @@ hosted service.
 
 ## Status
 
-Pre-release. Covered by 1,261 tests.
+Pre-release. Covered by 1,391 tests.
 
-**Run against the real thing:** Claude Code, Jira, and GitHub → Copilot → local verify.
+**Run against the real thing:** Claude Code, Jira, and GitHub → Copilot → local verify;
+`plan`'s bridge from Jira to a mirrored GitHub issue, including the rendered artefact and the
+link back to the source ticket.
 
 **Not yet run against the real thing:** Cursor, Codex and local adapters; the read-only
-invocation behind `advise --depth` / `propose`. Free `advise` needs no agent. `preflight` says so.
+invocation behind `advise --depth` / `propose`; the Slack and Teams notifiers, tested against a
+fake webhook but not a real one. Free `advise` needs no agent. `preflight` says so.
 
 ## Releasing
 

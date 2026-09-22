@@ -188,6 +188,19 @@ describe('workflows', () => {
     expect(workflow).toContain('does nothing until you set')
   })
 
+  it('scaffolds a check workflow that needs no kill switch, because it can only ever report', async () => {
+    // Unlike run and review, check spends nothing and writes nothing — gating it the same way
+    // would mean the one workflow that can never do harm is also the one nobody has turned on.
+    await initGitWithRemote(root)
+    await runCli(initCommand, argv(root, 'init'))
+
+    expect(await exists(root, '.github/workflows/ctxmux-check.yml')).toBe(true)
+    const workflow = await read(root, '.github/workflows/ctxmux-check.yml')
+    expect(workflow).not.toContain('CTXMUX_ENABLED')
+    expect(workflow).toContain('command: check')
+    expect(workflow).toContain('--strict')
+  })
+
   it('uses the layout it detected rather than a guess', async () => {
     await writeAll(root, {
       'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n  - "apps/*"\n',
@@ -229,7 +242,7 @@ describe('workflows', () => {
 
     const { text } = await runCli(initCommand, argv(root, 'init'))
 
-    expect(text).toContain('Before the workflow can run')
+    expect(text).toContain('Before the run and review workflows can work')
     expect(text).toContain('CTXMUX_TOKEN')
     expect(text).toContain('CTXMUX_ENABLED')
   })
@@ -554,7 +567,7 @@ describe('init --compiler-only', () => {
     expect(config.targets?.length).toBeGreaterThan(0)
     expect(config.agent).toBeUndefined()
     expect(config.tracker).toBeUndefined()
-    expect(text).not.toContain('Before the workflow can run')
+    expect(text).not.toContain('Before the run and review workflows can work')
   })
 
   it('always prints an advise summary', async () => {

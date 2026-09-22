@@ -137,6 +137,12 @@ importers:
       '@contextmux/learn':
         specifier: workspace:*
         version: link:../learn
+      '@contextmux/notifier-slack':
+        specifier: workspace:*
+        version: link:../notifier-slack
+      '@contextmux/notifier-teams':
+        specifier: workspace:*
+        version: link:../notifier-teams
       '@contextmux/prompt':
         specifier: workspace:*
         version: link:../prompt
@@ -226,6 +232,18 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/notifier-slack:
+    dependencies:
+      '@contextmux/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/notifier-teams:
+    dependencies:
+      '@contextmux/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/prompt:
     dependencies:

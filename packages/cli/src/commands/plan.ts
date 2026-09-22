@@ -19,18 +19,35 @@
  *    issue assignment, so for Copilot bridging is not a convenience but the only path there is.
  *
  *      ctxmux plan PDC-1234 --tracker jira --agent codex
- *      ...review the mirrored issue that just opened on GitHub, correct anything it got wrong...
+ *      ...review the issue that just opened on GitHub, correct anything it got wrong...
  *      ctxmux run <that issue number> --tracker github --agent codex
+ *
+ * The bridged issue is not a copy of the source ticket's body — it is the same rendered
+ * artefact `renderPrompt` builds for a real `run` (repository map, acceptance criteria
+ * restated under their own heading, the working agreement, the same audience-specific
+ * framing a delegated agent gets). Reviewing anything less would be reviewing a different,
+ * friendlier document than the one an agent is actually handed.
  *
  * Which job runs is decided by whether the argument names a task the tracker already has.
  * Nothing here touches the working tree, spends a coding agent's budget, or opens a worktree —
  * bridging opens exactly one GitHub issue and assigns nobody, starts nothing, against it.
  */
 import * as path from 'node:path'
-import { c, error, info, success } from '../ui.js'
-import { flagString, type ParsedArgs } from '../args.js'
+import { loadContext } from '@contextmux/context'
+import { buildIndex } from '@contextmux/repo'
+import { renderPrompt } from '@contextmux/prompt'
+import { c, error, info, success, warn } from '../ui.js'
+import { flagNumber, flagString, type ParsedArgs } from '../args.js'
 import { ConfigError, resolveTracker, type ResolveOptions } from '../resolve.js'
 import { judgeFor } from './advise.js'
+import { bridgeLabel } from '../bridge.js'
+
+/**
+ * What a GitHub issue body holds. Matches `CopilotAgent`'s own limit exactly, because bridging
+ * always lands on a GitHub issue regardless of which agent it is for — the ceiling is GitHub's,
+ * not Copilot's.
+ */
+const MAX_ISSUE_BODY = 65_536
 
 /**
  * Agents with no interface but assignment.
@@ -156,17 +173,55 @@ export async function planCommand(args: ParsedArgs): Promise<number> {
       throw err
     }
 
+    // The same artefact a real `run` would build, not the source ticket's raw body — a
+    // repository map, acceptance criteria restated under their own heading, and framing
+    // specific to whether the agent named is delegated or driven. Errors degrade to
+    // undefined rather than failing the bridge: a run without the repository map is a worse
+    // run, not a reason to refuse one.
+    const context = await loadContext({ root }).then((ctx) => ctx.model, () => undefined)
+    const index = await buildIndex(root).catch(() => undefined)
+    const audience = agentName && DELEGATED_AGENTS.has(agentName) ? 'delegated' : 'driven'
+
+    const body = renderPrompt({
+      task: existing,
+      ...(context ? { context } : {}),
+      ...(index ? { index } : {}),
+      repoBudget: flagNumber(args, 'repo-budget', { default: 3_000, min: 0 }),
+      audience,
+    })
+
+    if (body.length > MAX_ISSUE_BODY) {
+      error(
+        `The rendered artefact for ${existing.id} is ${body.length.toLocaleString()} characters, ` +
+          `and a GitHub issue body holds ${MAX_ISSUE_BODY.toLocaleString()}.`,
+      )
+      info('    ' + c.dim('Narrow the task\'s scope, or lower --repo-budget, so less of the repository is described in it.'))
+      return 1
+    }
+
     let bridged
     try {
       bridged = await github.create!({
         title: existing.title,
-        body: existing.body,
-        ...(existing.labels.length ? { labels: existing.labels } : {}),
+        body,
+        // Carries where this came from onto the issue itself — the one place both ends of the
+        // bridge are guaranteed to be able to read it back from later. `run` looks for it when
+        // this issue's work concludes, to report the outcome to the ticket this started from.
+        labels: [...existing.labels, bridgeLabel(tracker.id, existing.id)],
       })
     } catch (err) {
       error(`Could not open a GitHub issue for ${existing.id}: ${(err as Error).message}`)
       return 1
     }
+
+    // Non-fatal: the bridge already succeeded and is fully usable without this. A source
+    // tracker a human cannot currently write to — a token that expired since `plan` started —
+    // is not a reason to lose the issue that was just opened.
+    await tracker
+      .comment(existing.id, `Bridged to GitHub for review: ${bridged.origin.url ?? `#${bridged.id}`}`)
+      .catch((err: unknown) => {
+        warn(`Bridged, but could not link back from ${existing.id} on ${tracker.id}: ${(err as Error).message}`)
+      })
 
     success(`Bridged ${c.bold(existing.id)} (${tracker.id}) to ${c.bold(bridged.id)} on GitHub.`)
     if (bridged.origin.url) info('    ' + bridged.origin.url)

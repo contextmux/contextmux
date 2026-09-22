@@ -7,6 +7,7 @@ import { initCommand } from './commands/init.js'
 import { doctorCommand } from './commands/doctor.js'
 import { mapCommand } from './commands/map.js'
 import { runCommand, statusCommand } from './commands/run.js'
+import { planCommand } from './commands/plan.js'
 import { eventCommand } from './commands/event.js'
 import { evalCommand } from './commands/eval.js'
 import { learnCommand } from './commands/learn.js'
@@ -31,6 +32,7 @@ ${c.bold('COMMANDS')}
                   --depth single|panel also asks your agent; the default costs nothing
   doctor          Report anything that will fail silently
 
+  plan            Create a task on a tracker and stop — review and edit it before running it
   run             Drive a task to a proposed change, with gates and an isolated worktree
   status          Show recorded runs and what is waiting on you
   trace           Show what an agent actually did, step by step
@@ -54,6 +56,16 @@ ${c.bold('COMMON OPTIONS')}
   --explain           Print the fidelity report: what each target loses
   -h, --help          Show this
   -v, --version       Show version
+
+${c.bold('PLAN OPTIONS')}
+  --tracker <name>    file, github or jira — where the task is, or is created
+                      jira also needs JIRA_PROJECT_KEY set, to create one
+  --repo <owner/repo> Repository to bridge an existing task into
+  --agent <name>      New task: draft with claude or codex, read-only
+                      Existing task: bridge it to a GitHub issue, for any agent
+  --model <name>      Model for the drafting agent
+  --labels <list>     Comma-separated labels to apply to a newly created task
+  --title <text>      Override the title (default: the first line of the description)
 
 ${c.bold('RUN OPTIONS')}
   --agent <name>      claude, cursor, codex, local (driven) or copilot (delegated)
@@ -81,6 +93,8 @@ ${c.bold('EVAL OPTIONS')}
   --concurrent        Run agents at once (distorts wall-clock figures)
 
 ${c.bold('EXAMPLES')}
+  ctxmux plan "add a currency formatter" --tracker github --agent codex
+  ctxmux plan PDC-1234 --tracker jira --agent codex --repo owner/name   ${c.dim('# bridge to GitHub, stop')}
   ctxmux run T-1 --allow "src/**"
   ctxmux run ABC-1234 --tracker jira --agent copilot
   ctxmux run T-1 --agents claude,codex        ${c.dim('# hand over if the first gives up')}
@@ -135,6 +149,8 @@ async function main(): Promise<number> {
       return doctorCommand(args)
     case 'map':
       return mapCommand(args)
+    case 'plan':
+      return planCommand(args)
     case 'run':
       return runCommand(args)
     case 'status':

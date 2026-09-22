@@ -94,6 +94,21 @@ describe('resolving an agent', () => {
     expect((err as ConfigError).message).toContain('No repository configured')
     expect((err as ConfigError).hint).toContain('--repo')
   })
+
+  it('rejects --model for Copilot rather than silently ignoring it', async () => {
+    // Every CLI-driven agent takes --model and passes it straight through. Copilot cannot: its
+    // assignment API has no per-request model parameter, so accepting the flag and dropping it
+    // would let someone believe they picked a model when they did not.
+    vi.stubEnv('GITHUB_TOKEN', 'stub-token-for-test')
+
+    const err = await resolveAgent({ ...opts(), agent: 'copilot', repo: 'acme/widgets', model: 'gpt-5' }).catch(
+      (e) => e,
+    )
+
+    expect(err).toBeInstanceOf(ConfigError)
+    expect((err as ConfigError).message).toContain('--model has no effect on the copilot agent')
+    expect((err as ConfigError).hint).toContain('github.com/acme/widgets/settings/copilot/coding_agent')
+  })
 })
 
 describe('resolving a tracker', () => {
@@ -122,6 +137,37 @@ describe('resolving a tracker', () => {
     vi.stubEnv('JIRA_API_TOKEN', 'stub-token-for-test')
 
     expect((await resolveTracker({ ...opts(), tracker: 'jira' })).id).toBe('jira')
+  })
+
+  it('reads JIRA_PROJECT_KEY, which only `create` needs', async () => {
+    // Every other Jira operation addresses an issue that already carries its project in its
+    // key; `create` is the one place with nothing to infer one from. Checked by asserting the
+    // fetch it makes carries the key, rather than reaching into the tracker's private state.
+    vi.stubEnv('JIRA_URL', 'https://example.atlassian.net')
+    vi.stubEnv('JIRA_EMAIL', 'a@example.com')
+    vi.stubEnv('JIRA_API_TOKEN', 'stub-token-for-test')
+    vi.stubEnv('JIRA_PROJECT_KEY', 'ABC')
+
+    // The GET that follows creation (`create` reads the issue back through `get`) reuses the
+    // same fake response shape, which `toSpec` cannot read — irrelevant here, since only the
+    // POST this test is checking needs to be captured before that second call happens.
+    const bodies: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        if (init.body) bodies.push(init.body as string)
+        return new Response(JSON.stringify({ key: 'ABC-1', fields: { summary: 'A task', labels: [] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }),
+    )
+
+    const tracker = await resolveTracker({ ...opts(), tracker: 'jira' })
+    await tracker.create!({ title: 'A task', body: 'Body.' }).catch(() => {})
+
+    const posted = bodies.map((b) => JSON.parse(b)).find((b) => b.fields?.project)
+    expect(posted?.fields.project).toEqual({ key: 'ABC' })
   })
 
   it('needs a repository for the GitHub tracker, and says so', async () => {

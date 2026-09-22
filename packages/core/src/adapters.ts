@@ -6,7 +6,7 @@
  * inside a runner you control. The orchestrator branches on capability, never on brand — if
  * it ever says `if (agent.id === 'copilot')`, the abstraction has failed.
  */
-import type { AgentResult, Budget, Feedback, SemanticState, TaskSpec } from './task.js'
+import type { AgentResult, Budget, Feedback, SemanticState, TaskDraft, TaskSpec } from './task.js'
 
 // ---------------------------------------------------------------------------
 // Agents
@@ -161,6 +161,17 @@ export interface Tracker {
    * Optional: a tracker backed by files in the repository has no notion of an assignee.
    */
   assignToSelf?(id: string): Promise<void>
+  /**
+   * Originate a task, rather than only reading one that already exists.
+   *
+   * Optional for the same reason `assignToSelf` is: every tracker shipped here can create a
+   * task, but the interface should not force a hypothetical read-only adapter — a reporting
+   * dashboard, a snapshot of another system — to implement a write it cannot honestly perform.
+   *
+   * Returns the created task exactly as `get` would return it afterwards, so a caller can act
+   * on it (print its id and url) without a second round trip.
+   */
+  create?(draft: TaskDraft): Promise<TaskSpec>
 }
 
 // ---------------------------------------------------------------------------

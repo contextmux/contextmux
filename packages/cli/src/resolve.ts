@@ -212,6 +212,26 @@ export async function resolveAgent(opts: ResolveOptions): Promise<CodingAgent> {
 
     case 'copilot': {
       /*
+       * Unlike every CLI-driven agent, Copilot's coding agent has no per-request model
+       * parameter to pass — the assignment API GraphQL mutation used in `delegate` takes an
+       * actor id and nothing else. The model it runs is a repository (or organisation) setting
+       * on github.com, so `--model` here cannot do what it does for claude/cursor/codex/local.
+       * Silently dropping it would let someone believe they picked a model when they did not;
+       * failing fast and naming where the real control lives is the honest alternative.
+       *
+       * Resolved only in this branch, and before the credentials check below: a bad --repo is a
+       * typo somebody can see, but there is no reason to make them fix credentials first only
+       * to be told afterwards that the flag they passed was never going to work anyway.
+       */
+      if (opts.model) {
+        const repo = await repoRef(opts)
+        throw new ConfigError(
+          `--model has no effect on the copilot agent: GitHub does not accept a model per request.`,
+          `Set it once at https://github.com/${repo.owner}/${repo.repo}/settings/copilot/coding_agent instead.`,
+        )
+      }
+
+      /*
        * Missing credentials are a configuration problem, so they have to arrive as one.
        *
        * `resolveClient` throws a `GitHubApiError`, and callers branch on `ConfigError` to
@@ -280,6 +300,11 @@ export async function resolveTracker(opts: ResolveOptions): Promise<Tracker> {
         defaultQualityGate: opts.defaultQualityGate,
         browseBaseUrl: baseUrl,
         ...(opts.scope ? { defaultScope: opts.scope } : {}),
+        // Only `plan` needs this: every other method addresses an issue that already carries
+        // its project in its key. Read from the environment rather than a flag, matching every
+        // other Jira setting here — none of them are things you would want to retype per run.
+        ...(env('JIRA_PROJECT_KEY') ? { projectKey: env('JIRA_PROJECT_KEY')! } : {}),
+        ...(env('JIRA_ISSUE_TYPE') ? { issueType: env('JIRA_ISSUE_TYPE')! } : {}),
       })
     }
 

@@ -9,7 +9,7 @@
  * Semantic state has no native home on an issue, so it is carried in labels. That is visible,
  * greppable and needs no extra infrastructure.
  */
-import { extractAcceptanceCriteria, type SemanticState, type TaskSpec, type Tracker } from '@contextmux/core'
+import { extractAcceptanceCriteria, type SemanticState, type TaskDraft, type TaskSpec, type Tracker } from '@contextmux/core'
 import { GitHubForge, type GitHubClient, type RepoRef } from '@contextmux/forge-github'
 
 export const STATE_LABELS: Record<SemanticState, string> = {
@@ -114,6 +114,29 @@ export class GitHubTracker implements Tracker {
   async setLabels(id: string, add: string[], remove: string[]): Promise<void> {
     const number = issueNumber(id)
     if (number !== null) await this.forge.setLabels(number, add, remove)
+  }
+
+  /**
+   * Open an issue and return it as `get` would.
+   *
+   * Acceptance criteria have no field of their own on a GitHub issue, so they are rendered
+   * into the body under a heading `extractAcceptanceCriteria` already recognises — the same
+   * round trip an issue a human wrote by hand goes through.
+   */
+  async create(draft: TaskDraft): Promise<TaskSpec> {
+    const body = draft.acceptanceCriteria?.length
+      ? `${draft.body.trim()}\n\n## Acceptance Criteria\n\n${draft.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}\n`
+      : draft.body
+
+    const issue = await this.forge.createIssue({
+      title: draft.title,
+      body,
+      ...(this.opts.label || draft.labels?.length
+        ? { labels: [...(this.opts.label ? [this.opts.label] : []), ...(draft.labels ?? [])] }
+        : {}),
+    })
+
+    return this.toSpec(issue)
   }
 }
 

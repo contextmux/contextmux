@@ -461,8 +461,8 @@ var init_parseUtil = __esm({
     init_errors();
     init_en();
     makeIssue = (params) => {
-      const { data, path: path27, errorMaps, issueData } = params;
-      const fullPath = [...path27, ...issueData.path || []];
+      const { data, path: path28, errorMaps, issueData } = params;
+      const fullPath = [...path28, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -770,11 +770,11 @@ var init_types = __esm({
     init_parseUtil();
     init_util();
     ParseInputLazyPath = class {
-      constructor(parent, value, path27, key) {
+      constructor(parent, value, path28, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path27;
+        this._path = path28;
         this._key = key;
       }
       get path() {
@@ -4400,17 +4400,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path27) {
-      const ctrl = callVisitor(key, node, visitor, path27);
+    function visit_(key, node, visitor, path28) {
+      const ctrl = callVisitor(key, node, visitor, path28);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path27, ctrl);
-        return visit_(key, ctrl, visitor, path27);
+        replaceNode(key, path28, ctrl);
+        return visit_(key, ctrl, visitor, path28);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path27 = Object.freeze(path27.concat(node));
+          path28 = Object.freeze(path28.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path27);
+            const ci = visit_(i, node.items[i], visitor, path28);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -4421,13 +4421,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path27 = Object.freeze(path27.concat(node));
-          const ck = visit_("key", node.key, visitor, path27);
+          path28 = Object.freeze(path28.concat(node));
+          const ck = visit_("key", node.key, visitor, path28);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path27);
+          const cv = visit_("value", node.value, visitor, path28);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -4448,17 +4448,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path27) {
-      const ctrl = await callVisitor(key, node, visitor, path27);
+    async function visitAsync_(key, node, visitor, path28) {
+      const ctrl = await callVisitor(key, node, visitor, path28);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path27, ctrl);
-        return visitAsync_(key, ctrl, visitor, path27);
+        replaceNode(key, path28, ctrl);
+        return visitAsync_(key, ctrl, visitor, path28);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path27 = Object.freeze(path27.concat(node));
+          path28 = Object.freeze(path28.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path27);
+            const ci = await visitAsync_(i, node.items[i], visitor, path28);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -4469,13 +4469,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path27 = Object.freeze(path27.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path27);
+          path28 = Object.freeze(path28.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path28);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path27);
+          const cv = await visitAsync_("value", node.value, visitor, path28);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -4502,23 +4502,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path27) {
+    function callVisitor(key, node, visitor, path28) {
       if (typeof visitor === "function")
-        return visitor(key, node, path27);
+        return visitor(key, node, path28);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path27);
+        return visitor.Map?.(key, node, path28);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path27);
+        return visitor.Seq?.(key, node, path28);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path27);
+        return visitor.Pair?.(key, node, path28);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path27);
+        return visitor.Scalar?.(key, node, path28);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path27);
+        return visitor.Alias?.(key, node, path28);
       return void 0;
     }
-    function replaceNode(key, path27, node) {
-      const parent = path27[path27.length - 1];
+    function replaceNode(key, path28, node) {
+      const parent = path28[path28.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -5128,10 +5128,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path27, value) {
+    function collectionFromPath(schema, path28, value) {
       let v = value;
-      for (let i = path27.length - 1; i >= 0; --i) {
-        const k = path27[i];
+      for (let i = path28.length - 1; i >= 0; --i) {
+        const k = path28[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -5150,7 +5150,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path27) => path27 == null || typeof path27 === "object" && !!path27[Symbol.iterator]().next().done;
+    var isEmptyPath = (path28) => path28 == null || typeof path28 === "object" && !!path28[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -5180,11 +5180,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path27, value) {
-        if (isEmptyPath(path27))
+      addIn(path28, value) {
+        if (isEmptyPath(path28))
           this.add(value);
         else {
-          const [key, ...rest] = path27;
+          const [key, ...rest] = path28;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -5198,8 +5198,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path27) {
-        const [key, ...rest] = path27;
+      deleteIn(path28) {
+        const [key, ...rest] = path28;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -5213,8 +5213,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path27, keepScalar) {
-        const [key, ...rest] = path27;
+      getIn(path28, keepScalar) {
+        const [key, ...rest] = path28;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -5232,8 +5232,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path27) {
-        const [key, ...rest] = path27;
+      hasIn(path28) {
+        const [key, ...rest] = path28;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -5243,8 +5243,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path27, value) {
-        const [key, ...rest] = path27;
+      setIn(path28, value) {
+        const [key, ...rest] = path28;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -7759,9 +7759,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path27, value) {
+      addIn(path28, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path27, value);
+          this.contents.addIn(path28, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -7836,14 +7836,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path27) {
-        if (Collection.isEmptyPath(path27)) {
+      deleteIn(path28) {
+        if (Collection.isEmptyPath(path28)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path27) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path28) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -7858,10 +7858,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path27, keepScalar) {
-        if (Collection.isEmptyPath(path27))
+      getIn(path28, keepScalar) {
+        if (Collection.isEmptyPath(path28))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path27, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path28, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -7872,10 +7872,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path27) {
-        if (Collection.isEmptyPath(path27))
+      hasIn(path28) {
+        if (Collection.isEmptyPath(path28))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path27) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path28) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -7892,13 +7892,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path27, value) {
-        if (Collection.isEmptyPath(path27)) {
+      setIn(path28, value) {
+        if (Collection.isEmptyPath(path28)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path27), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path28), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path27, value);
+          this.contents.setIn(path28, value);
         }
       }
       /**
@@ -9858,9 +9858,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path27) => {
+    visit.itemAtPath = (cst, path28) => {
       let item = cst;
-      for (const [field, index] of path27) {
+      for (const [field, index] of path28) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -9869,23 +9869,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path27) => {
-      const parent = visit.itemAtPath(cst, path27.slice(0, -1));
-      const field = path27[path27.length - 1][0];
+    visit.parentCollection = (cst, path28) => {
+      const parent = visit.itemAtPath(cst, path28.slice(0, -1));
+      const field = path28[path28.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path27, item, visitor) {
-      let ctrl = visitor(item, path27);
+    function _visit(path28, item, visitor) {
+      let ctrl = visitor(item, path28);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path27.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path28.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -9896,10 +9896,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path27);
+            ctrl = ctrl(item, path28);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path27) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path28) : ctrl;
     }
     exports.visit = visit;
   }
@@ -15304,7 +15304,7 @@ var CliAgent = class {
   async preflight() {
     const { spawn: spawn6 } = await import("node:child_process");
     const timeoutMs = this.opts.preflightTimeoutMs ?? PREFLIGHT_TIMEOUT_MS;
-    const version = await new Promise((resolve17) => {
+    const version = await new Promise((resolve18) => {
       const child = spawn6(this.bin, ["--version"], { windowsHide: true });
       let out = "";
       let settled = false;
@@ -15312,7 +15312,7 @@ var CliAgent = class {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve17(v);
+        resolve18(v);
       };
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
@@ -15600,7 +15600,7 @@ async function askOnce(spec, input) {
   const timeoutMs = input.timeoutMs ?? ASK_TIMEOUT_MS;
   const { spawn: spawn6 } = await import("node:child_process");
   if (input.signal?.aborted) return { ok: false, reason: "cancelled" };
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn6(bin, call.args, {
       windowsHide: true,
       env: { ...process.env, ...call.env }
@@ -15613,7 +15613,7 @@ async function askOnce(spec, input) {
       settled = true;
       clearTimeout(timer);
       input.signal?.removeEventListener("abort", onAbort);
-      resolve17(v);
+      resolve18(v);
     };
     const onAbort = () => {
       child.kill("SIGKILL");
@@ -17012,7 +17012,7 @@ ${prompt}` });
       if (this.opts.signal?.aborted) {
         return { type: "cancelled", reason: "aborted while waiting for the agent" };
       }
-      await new Promise((resolve17) => setTimeout(resolve17, interval));
+      await new Promise((resolve18) => setTimeout(resolve18, interval));
       interval = Math.min(Math.round(interval * 1.6), maxInterval);
       observations += 1;
       let result;
@@ -18979,12 +18979,12 @@ function detectTracker() {
   return "file";
 }
 async function configuredNames(root) {
-  const read2 = (args) => new Promise((resolve17) => {
+  const read2 = (args) => new Promise((resolve18) => {
     const child = spawn("gh", args, { cwd: root, windowsHide: true });
     let out = "";
     child.stdout.on("data", (d) => out += d);
-    child.on("error", () => resolve17(""));
-    child.on("close", (code) => resolve17(code === 0 ? out : ""));
+    child.on("error", () => resolve18(""));
+    child.on("close", (code) => resolve18(code === 0 ? out : ""));
   });
   const [secrets, variables] = await Promise.all([
     read2(["secret", "list", "--json", "name", "-q", ".[].name"]),
@@ -18996,12 +18996,12 @@ ${variables}`.split("\n").map((l) => l.trim()).filter(Boolean)
   );
 }
 function hasGitRemote(root) {
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn("git", ["remote"], { cwd: root, windowsHide: true });
     let out = "";
     child.stdout.on("data", (d) => out += d);
-    child.on("error", () => resolve17(false));
-    child.on("close", () => resolve17(out.trim().length > 0));
+    child.on("error", () => resolve18(false));
+    child.on("close", () => resolve18(out.trim().length > 0));
   });
 }
 async function reviewWhatIsThere(root, asked) {
@@ -19449,14 +19449,14 @@ import { promises as fs13 } from "node:fs";
 import * as os from "node:os";
 import * as path15 from "node:path";
 async function git2(cwd, args) {
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn2("git", args, { cwd, windowsHide: true });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => stdout += d);
     child.stderr.on("data", (d) => stderr += d);
-    child.on("close", (code) => resolve17({ code: code ?? 1, stdout, stderr }));
-    child.on("error", (err) => resolve17({ code: 1, stdout, stderr: String(err) }));
+    child.on("close", (code) => resolve18({ code: code ?? 1, stdout, stderr }));
+    child.on("error", (err) => resolve18({ code: 1, stdout, stderr: String(err) }));
   });
 }
 var CTXMUX_ARTEFACTS = [
@@ -19619,7 +19619,7 @@ var LocalRunner = class _LocalRunner {
     if (this.disposed) throw new Error("runner has been disposed");
     const timeoutMs = opts.timeoutMs ?? this.opts.defaultTimeoutMs ?? 15 * 6e4;
     const started = Date.now();
-    return new Promise((resolve17) => {
+    return new Promise((resolve18) => {
       const child = spawn2(command, args, {
         cwd: this.cwd,
         env: { ...process.env, ...this.opts.env, ...opts.env },
@@ -19634,7 +19634,7 @@ var LocalRunner = class _LocalRunner {
         settled = true;
         clearTimeout(timer);
         opts.signal?.removeEventListener("abort", onAbort);
-        resolve17({ code, stdout, stderr, timedOut, durationMs: Date.now() - started });
+        resolve18({ code, stdout, stderr, timedOut, durationMs: Date.now() - started });
       };
       const timer = setTimeout(() => {
         timedOut = true;
@@ -19829,6 +19829,10 @@ ${raw}`;
 ${field.test(front) ? front.replace(field, line) : `${line}
 ${front}`}${rest}`;
 }
+function slugify(title) {
+  const slug3 = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  return slug3 || "task";
+}
 function toArray(v) {
   if (Array.isArray(v)) return v.map(String);
   if (typeof v === "string") return v.split(",").map((s) => s.trim()).filter(Boolean);
@@ -19928,6 +19932,37 @@ ${body}
     await writeFileAtomic2(filePath, setFrontmatterField(raw, "labels", `[${[...current].join(", ")}]`));
   }
   /**
+   * Write a new task file and return it as `get` would.
+   *
+   * The filename is a slug of the title rather than a random id, because these files live in a
+   * pull request like any other and a name that says nothing is what makes review of that diff
+   * unpleasant. Collisions get a numeric suffix instead of overwriting — a title reused a week
+   * later is an ordinary thing to type, and silently replacing the earlier task would discard
+   * work somebody may still be reading.
+   */
+  async create(draft2) {
+    await fs14.mkdir(this.dir, { recursive: true });
+    const base = slugify(draft2.title);
+    const existing = new Set((await this.files()).map((f) => path16.basename(f, ".md")));
+    let id = base;
+    for (let n = 2; existing.has(id); n++) id = `${base}-${n}`;
+    const frontmatter2 = {
+      title: draft2.title,
+      status: "todo",
+      ...draft2.labels?.length ? { labels: draft2.labels } : {},
+      ...draft2.acceptanceCriteria?.length ? { acceptanceCriteria: draft2.acceptanceCriteria } : {}
+    };
+    const filePath = path16.join(this.dir, `${id}.md`);
+    await writeFileAtomic2(filePath, `---
+${(0, import_yaml2.stringify)(frontmatter2)}---
+
+${draft2.body.trim()}
+`);
+    const created = await this.get(id);
+    if (!created) throw new Error(`wrote ${filePath} but could not read it back`);
+    return created;
+  }
+  /**
    * Whether a resolved path is inside the repository this tracker was pointed at.
    *
    * An id is a string from outside — a `--task` argument, a workflow input — and both lookups
@@ -19975,14 +20010,14 @@ function inlineTask(description, opts = {}) {
 // packages/forge-github/src/client.ts
 import { spawn as spawn3 } from "node:child_process";
 function run(bin, args, input) {
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn3(bin, args, { windowsHide: true });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => stdout += d);
     child.stderr.on("data", (d) => stderr += d);
-    child.on("error", (err) => resolve17({ code: 127, stdout, stderr: String(err) }));
-    child.on("close", (code) => resolve17({ code: code ?? 1, stdout, stderr }));
+    child.on("error", (err) => resolve18({ code: 127, stdout, stderr: String(err) }));
+    child.on("close", (code) => resolve18({ code: code ?? 1, stdout, stderr }));
     child.stdin.on("error", () => {
     });
     if (input !== void 0) child.stdin.write(input);
@@ -19990,10 +20025,10 @@ function run(bin, args, input) {
   });
 }
 var GitHubApiError = class extends Error {
-  constructor(message, status, path27) {
+  constructor(message, status, path28) {
     super(message);
     this.status = status;
-    this.path = path27;
+    this.path = path28;
   }
   status;
   path;
@@ -20013,7 +20048,7 @@ var TokenClient = class {
   baseUrl;
   fetchImpl;
   sleep;
-  async request(method, url, body, path27, idempotent) {
+  async request(method, url, body, path28, idempotent) {
     const maxAttempts = idempotent ? this.opts.maxAttempts ?? 3 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const res = await this.fetchImpl(url, {
@@ -20039,23 +20074,23 @@ var TokenClient = class {
         throw new GitHubApiError(
           `HTTP ${res.status}: ${redact(text).slice(0, 300)}`,
           res.status,
-          path27
+          path28
         );
       }
       if (res.status === 204) return void 0;
       return await res.json();
     }
-    throw new GitHubApiError("request failed", 0, path27);
+    throw new GitHubApiError("request failed", 0, path28);
   }
-  async rest(method, path27, body) {
-    return this.request(method, `${this.baseUrl}/${path27}`, body, path27, method === "GET");
+  async rest(method, path28, body) {
+    return this.request(method, `${this.baseUrl}/${path28}`, body, path28, method === "GET");
   }
-  async raw(path27, accept) {
-    const res = await this.fetchImpl(`${this.baseUrl}/${path27}`, {
+  async raw(path28, accept) {
+    const res = await this.fetchImpl(`${this.baseUrl}/${path28}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${this.opts.token}`, Accept: accept }
     });
-    if (!res.ok) throw new GitHubApiError(`HTTP ${res.status}`, res.status, path27);
+    if (!res.ok) throw new GitHubApiError(`HTTP ${res.status}`, res.status, path28);
     return res.text();
   }
   async graphql(query, variables = {}, headers = {}) {
@@ -20106,14 +20141,14 @@ var GhCliClient = class {
     }
     return res.stdout;
   }
-  async rest(method, path27, body) {
-    const args = ["api", "--method", method, path27];
+  async rest(method, path28, body) {
+    const args = ["api", "--method", method, path28];
     if (body !== void 0) args.push("--input", "-");
     const out = await this.run(args, body === void 0 ? void 0 : JSON.stringify(body));
     return out.trim() ? JSON.parse(out) : void 0;
   }
-  async raw(path27, accept) {
-    return this.run(["api", "-H", `Accept: ${accept}`, path27]);
+  async raw(path28, accept) {
+    return this.run(["api", "-H", `Accept: ${accept}`, path28]);
   }
   async graphql(query, variables = {}, headers = {}) {
     const args = ["api", "graphql", "--input", "-"];
@@ -20203,16 +20238,16 @@ var GitHubForge = class {
    * The canonical name is knowable, because the redirect that broke the write also makes the
    * read work. So it is looked up and named.
    */
-  async rest(method, path27, body) {
+  async rest(method, path28, body) {
     try {
-      return await this.client.rest(method, path27, body);
+      return await this.client.rest(method, path28, body);
     } catch (err) {
       if (!isRedirect(err) || method === "GET") throw err;
       const moved = await this.canonicalName().catch(() => null);
       throw new GitHubApiError(
         `${this.ref.owner}/${this.ref.repo} has moved${moved ? ` to ${moved}` : ""}. Reads follow the redirect but writes do not, which is why everything up to this point worked. Set CTXMUX_REPO${moved ? ` to ${moved}` : " to the new owner/name"}, or pass --repo.`,
         307,
-        path27
+        path28
       );
     }
   }
@@ -20366,18 +20401,18 @@ var GitHubForge = class {
    * wrong in. The page ceiling is a backstop against an unbounded loop, and it says so rather
    * than returning what it managed to collect.
    */
-  async paginate(path27, what, maxPages = 30) {
+  async paginate(path28, what, maxPages = 30) {
     const out = [];
-    const join23 = path27.includes("?") ? "&" : "?";
+    const join23 = path28.includes("?") ? "&" : "?";
     for (let page = 1; page <= maxPages; page++) {
-      const raw = await this.client.rest("GET", `${path27}${join23}per_page=100&page=${page}`);
+      const raw = await this.client.rest("GET", `${path28}${join23}per_page=100&page=${page}`);
       out.push(...raw);
       if (raw.length < 100) return out;
     }
     throw new GitHubApiError(
       `${what} more than ${maxPages * 100} items; refusing to report a partial list`,
       0,
-      path27
+      path28
     );
   }
   /**
@@ -20968,6 +21003,27 @@ var GitHubTracker = class {
     const number = issueNumber(id);
     if (number !== null) await this.forge.setLabels(number, add, remove);
   }
+  /**
+   * Open an issue and return it as `get` would.
+   *
+   * Acceptance criteria have no field of their own on a GitHub issue, so they are rendered
+   * into the body under a heading `extractAcceptanceCriteria` already recognises — the same
+   * round trip an issue a human wrote by hand goes through.
+   */
+  async create(draft2) {
+    const body = draft2.acceptanceCriteria?.length ? `${draft2.body.trim()}
+
+## Acceptance Criteria
+
+${draft2.acceptanceCriteria.map((c2) => `- ${c2}`).join("\n")}
+` : draft2.body;
+    const issue = await this.forge.createIssue({
+      title: draft2.title,
+      body,
+      ...this.opts.label || draft2.labels?.length ? { labels: [...this.opts.label ? [this.opts.label] : [], ...draft2.labels ?? []] } : {}
+    });
+    return this.toSpec(issue);
+  }
 };
 
 // packages/tracker-jira/src/adf.ts
@@ -21242,8 +21298,8 @@ var HttpJira = class {
   auth;
   fetchImpl;
   sleep;
-  async request(method, path27, body) {
-    const url = `${this.opts.baseUrl.replace(/\/$/, "")}/rest/api/3/${path27}`;
+  async request(method, path28, body) {
+    const url = `${this.opts.baseUrl.replace(/\/$/, "")}/rest/api/3/${path28}`;
     const maxAttempts = method === "GET" ? this.opts.maxAttempts ?? 3 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const res = await this.fetchImpl(url, {
@@ -21407,6 +21463,44 @@ var JiraTracker = class {
       }
     });
   }
+  /**
+   * File a new issue and return it as `get` would.
+   *
+   * Requires `projectKey`: unlike every other method here, which addresses an issue that
+   * already carries its project in its key (`ABC-123`), there is nothing in a draft that says
+   * which project a new one belongs to. Failing here, with a message naming the option, beats
+   * a 400 from Jira three lines into a request that names neither.
+   *
+   * Acceptance criteria have no field of their own on a Jira issue, so — as for the GitHub
+   * tracker — they are rendered into the body under a heading `extractAcceptanceCriteria`
+   * already recognises, the same round trip an issue a human wrote by hand goes through.
+   */
+  async create(draft2) {
+    if (!this.opts.projectKey) {
+      throw new JiraError(
+        "Cannot create a Jira issue without knowing which project it belongs to. Set projectKey on the tracker.",
+        400
+      );
+    }
+    const body = draft2.acceptanceCriteria?.length ? `${draft2.body.trim()}
+
+## Acceptance Criteria
+
+${draft2.acceptanceCriteria.map((c2) => `- ${c2}`).join("\n")}
+` : draft2.body;
+    const created = await this.opts.transport.request("POST", "issue", {
+      fields: {
+        project: { key: this.opts.projectKey },
+        issuetype: { name: this.opts.issueType ?? "Task" },
+        summary: draft2.title,
+        description: markdownToAdf(body),
+        ...draft2.labels?.length ? { labels: draft2.labels } : {}
+      }
+    });
+    const spec = await this.get(created.key);
+    if (!spec) throw new JiraError(`created ${created.key} but could not read it back`, 500);
+    return spec;
+  }
 };
 
 // packages/cli/src/resolve.ts
@@ -21432,12 +21526,12 @@ function repoFromRemote(url) {
 }
 async function detectRepo(root) {
   const { spawn: spawn6 } = await import("node:child_process");
-  const run3 = (cmd, args) => new Promise((resolve17) => {
+  const run3 = (cmd, args) => new Promise((resolve18) => {
     const child = spawn6(cmd, args, { cwd: root, windowsHide: true });
     let out = "";
     child.stdout.on("data", (d) => out += d);
-    child.on("error", () => resolve17(""));
-    child.on("close", (code) => resolve17(code === 0 ? out.trim() : ""));
+    child.on("error", () => resolve18(""));
+    child.on("close", (code) => resolve18(code === 0 ? out.trim() : ""));
   });
   const canonical = await run3("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]);
   if (canonical.includes("/")) return canonical;
@@ -21502,6 +21596,13 @@ async function resolveAgent(opts) {
         ...opts.recovery ? { recovery: opts.recovery } : {}
       });
     case "copilot": {
+      if (opts.model) {
+        const repo = await repoRef(opts);
+        throw new ConfigError(
+          `--model has no effect on the copilot agent: GitHub does not accept a model per request.`,
+          `Set it once at https://github.com/${repo.owner}/${repo.repo}/settings/copilot/coding_agent instead.`
+        );
+      }
       let client;
       try {
         ;
@@ -21557,7 +21658,12 @@ async function resolveTracker(opts) {
         ...env("JIRA_ESTIMATE_FIELD") ? { estimateField: env("JIRA_ESTIMATE_FIELD") } : {},
         defaultQualityGate: opts.defaultQualityGate,
         browseBaseUrl: baseUrl,
-        ...opts.scope ? { defaultScope: opts.scope } : {}
+        ...opts.scope ? { defaultScope: opts.scope } : {},
+        // Only `plan` needs this: every other method addresses an issue that already carries
+        // its project in its key. Read from the environment rather than a flag, matching every
+        // other Jira setting here — none of them are things you would want to retype per run.
+        ...env("JIRA_PROJECT_KEY") ? { projectKey: env("JIRA_PROJECT_KEY") } : {},
+        ...env("JIRA_ISSUE_TYPE") ? { issueType: env("JIRA_ISSUE_TYPE") } : {}
       });
     }
     default:
@@ -22558,9 +22664,156 @@ async function statusCommand(args) {
   return 0;
 }
 
+// packages/cli/src/commands/plan.ts
+import * as path18 from "node:path";
+var DELEGATED_AGENTS = /* @__PURE__ */ new Set(["copilot"]);
+function parseList(raw) {
+  return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+}
+function titleFrom(description) {
+  return description.split("\n")[0].slice(0, 100);
+}
+async function draft(description, agentName, model) {
+  const judge = judgeFor(agentName, model);
+  const prompt = [
+    "Turn the following one-line request into a clear task description for a coding agent that",
+    "has not seen this conversation. Write markdown with exactly these sections:",
+    "",
+    "## Description",
+    "(a few sentences: what to change and why, inferred from the request)",
+    "",
+    "## Acceptance Criteria",
+    "(a bullet list of concrete, checkable statements \u2014 what must be true when this is done)",
+    "",
+    "Do not write any code, and do not add sections beyond these two.",
+    "",
+    `Request: ${description}`
+  ].join("\n");
+  return judge.ask(prompt);
+}
+async function planCommand(args) {
+  const root = path18.resolve(flagString(args, "root") ?? process.cwd());
+  const target = args.positionals.join(" ").trim();
+  if (!target) {
+    error("Nothing to plan.");
+    info("");
+    info('  ctxmux plan "add a currency formatting helper" --tracker github');
+    info("  ctxmux plan PDC-1234 --tracker jira --agent copilot");
+    info("");
+    info(c.dim("  Creates or bridges a task and stops \u2014 review it, then `ctxmux run` it when ready."));
+    return 1;
+  }
+  const resolveOptions = {
+    root,
+    isolate: false,
+    defaultQualityGate: [],
+    ...flagString(args, "tracker") ? { tracker: flagString(args, "tracker") } : {},
+    ...flagString(args, "repo") ? { repo: flagString(args, "repo") } : {}
+  };
+  let tracker;
+  try {
+    tracker = await resolveTracker(resolveOptions);
+  } catch (err) {
+    if (err instanceof ConfigError) {
+      error(err.message);
+      if (err.hint) info("    " + c.dim(err.hint));
+      return 1;
+    }
+    throw err;
+  }
+  const agentName = flagString(args, "agent");
+  const model = flagString(args, "model");
+  let existing;
+  try {
+    existing = await tracker.get(target);
+  } catch (err) {
+    error(`Could not read "${target}" from the ${tracker.id} tracker: ${err.message}`);
+    if (tracker.id === "jira") {
+      info("    " + c.dim("Check JIRA_URL, JIRA_EMAIL and JIRA_API_TOKEN, and that the ticket exists."));
+    }
+    return 1;
+  }
+  if (existing) {
+    const needsBridge = Boolean(agentName) && tracker.id !== "github";
+    if (!needsBridge) {
+      info(`${c.bold(existing.id)} already exists on the ${tracker.id} tracker.`);
+      info(c.dim("  Nothing to plan \u2014 it is ready to run:"));
+      info(`  ctxmux run ${existing.id} --tracker ${tracker.id}${agentName ? ` --agent ${agentName}` : ""}`);
+      return 0;
+    }
+    let github;
+    try {
+      github = await resolveTracker({ ...resolveOptions, tracker: "github" });
+    } catch (err) {
+      if (err instanceof ConfigError) {
+        error(err.message);
+        if (err.hint) info("    " + c.dim(err.hint));
+        return 1;
+      }
+      throw err;
+    }
+    let bridged;
+    try {
+      bridged = await github.create({
+        title: existing.title,
+        body: existing.body,
+        ...existing.labels.length ? { labels: existing.labels } : {}
+      });
+    } catch (err) {
+      error(`Could not open a GitHub issue for ${existing.id}: ${err.message}`);
+      return 1;
+    }
+    success(`Bridged ${c.bold(existing.id)} (${tracker.id}) to ${c.bold(bridged.id)} on GitHub.`);
+    if (bridged.origin.url) info("    " + bridged.origin.url);
+    info("");
+    info(c.dim("  Review the mirrored issue, then when it is ready:"));
+    info(`  ctxmux run ${bridged.id} --tracker github --agent ${agentName}`);
+    return 0;
+  }
+  if (!tracker.create) {
+    error(`The ${tracker.id} tracker cannot create tasks.`);
+    info("    " + c.dim("Use --tracker github or --tracker jira, or write a file under .ctxmux/tasks yourself."));
+    return 1;
+  }
+  const description = target;
+  let body = description;
+  if (agentName && !DELEGATED_AGENTS.has(agentName)) {
+    info(c.dim(`Drafting with ${agentName}...`));
+    try {
+      body = await draft(description, agentName, model);
+    } catch (err) {
+      error(`Could not draft with ${agentName}: ${err.message}`);
+      info("    " + c.dim("Planning without a draft; pass no --agent to skip drafting on purpose."));
+      body = description;
+    }
+  }
+  const labels = parseList(flagString(args, "labels"));
+  const title = flagString(args, "title") ?? titleFrom(description);
+  let created;
+  try {
+    created = await tracker.create({
+      title,
+      body,
+      ...labels.length ? { labels } : {}
+    });
+  } catch (err) {
+    error(`Could not create a task on the ${tracker.id} tracker: ${err.message}`);
+    if (tracker.id === "jira") {
+      info("    " + c.dim("Check JIRA_PROJECT_KEY names a project the credentials can file issues in."));
+    }
+    return 1;
+  }
+  success(`Created ${c.bold(created.id)} on the ${tracker.id} tracker.`);
+  if (created.origin.url) info("    " + created.origin.url);
+  info("");
+  info(c.dim("  Review it, edit it if it is not right, then when it is ready:"));
+  info(`  ctxmux run ${created.id} --tracker ${tracker.id}${agentName ? ` --agent ${agentName}` : ""}`);
+  return 0;
+}
+
 // packages/cli/src/commands/event.ts
 import { promises as fs16 } from "node:fs";
-import * as path18 from "node:path";
+import * as path19 from "node:path";
 var DEFAULT_BOTS = ["Copilot", "copilot-swe-agent[bot]", "github-copilot[bot]", "github-actions[bot]"];
 function normalizeGitHubEvent(eventName, payload, runId, receivedAt = Date.now()) {
   const events = [];
@@ -22608,7 +22861,7 @@ function normalizeGitHubEvent(eventName, payload, runId, receivedAt = Date.now()
   return events;
 }
 async function eventCommand(args) {
-  const root = path18.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path19.resolve(flagString(args, "root") ?? process.cwd());
   const dryRun = flagBool(args, "dry-run", "n");
   const eventName = flagString(args, "event") || process.env["GITHUB_EVENT_NAME"] || void 0;
   const payloadPath = flagString(args, "payload") || process.env["GITHUB_EVENT_PATH"] || void 0;
@@ -22627,7 +22880,7 @@ async function eventCommand(args) {
     error(`Could not read the event payload at ${payloadPath}: ${err.message}`);
     return 1;
   }
-  const store = new FileStore(path18.join(root, ".ctxmux", "state"));
+  const store = new FileStore(path19.join(root, ".ctxmux", "state"));
   let targetRun = runId;
   if (!targetRun) {
     const prNumber = payload.pull_request?.number ?? payload.issue?.number;
@@ -22753,7 +23006,7 @@ async function eventCommand(args) {
 
 // packages/cli/src/commands/eval.ts
 import { promises as fs17 } from "node:fs";
-import * as path19 from "node:path";
+import * as path20 from "node:path";
 
 // packages/eval/src/score.ts
 function countDiffLines(diff) {
@@ -23010,11 +23263,11 @@ async function runEval(opts) {
 
 // packages/cli/src/commands/eval.ts
 init_src();
-function parseList(raw) {
+function parseList2(raw) {
   return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
 }
 async function evalCommand(args) {
-  const root = path19.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path20.resolve(flagString(args, "root") ?? process.cwd());
   const target = args.positionals.join(" ").trim();
   const dryRun = flagBool(args, "dry-run", "n");
   const concurrent = flagBool(args, "concurrent");
@@ -23028,11 +23281,11 @@ async function evalCommand(args) {
     info(c.dim("  Runs the same task through each agent in its own worktree and compares the results."));
     return 1;
   }
-  const requested = parseList(flagString(args, "agents"));
+  const requested = parseList2(flagString(args, "agents"));
   const names = requested.length === 0 || requested[0] === "all" ? AGENT_NAMES : requested;
   const profile = await detectProfile(root);
-  const allow = parseList(flagString(args, "allow"));
-  const deny = parseList(flagString(args, "deny"));
+  const allow = parseList2(flagString(args, "allow"));
+  const deny = parseList2(flagString(args, "deny"));
   const resolveOptions = {
     root,
     ...flagString(args, "tracker") ? { tracker: flagString(args, "tracker") } : {},
@@ -23155,8 +23408,8 @@ async function evalCommand(args) {
   }
   const out = flagString(args, "out");
   if (out) {
-    const abs = path19.resolve(root, out);
-    await fs17.mkdir(path19.dirname(abs), { recursive: true });
+    const abs = path20.resolve(root, out);
+    await fs17.mkdir(path20.dirname(abs), { recursive: true });
     await writeFileAtomic(abs, renderMarkdown(result));
     info("");
     success(`Wrote the comparison to ${out}`);
@@ -23174,7 +23427,7 @@ async function evalCommand(args) {
 
 // packages/cli/src/commands/learn.ts
 import { promises as fs19 } from "node:fs";
-import * as path21 from "node:path";
+import * as path22 from "node:path";
 init_src();
 
 // packages/learn/src/signals.ts
@@ -23337,7 +23590,7 @@ init_src();
 
 // packages/learn/src/ledger.ts
 import { promises as fs18 } from "node:fs";
-import * as path20 from "node:path";
+import * as path21 from "node:path";
 var VERSION = 1;
 var SIGNAL_TTL_MS = 90 * 24 * 60 * 60 * 1e3;
 var MAX_SIGNALS = 2e3;
@@ -23356,7 +23609,7 @@ var Ledger = class _Ledger {
    */
   loadError = null;
   static async open(dir) {
-    const ledger = new _Ledger(path20.join(dir, "learn.json"));
+    const ledger = new _Ledger(path21.join(dir, "learn.json"));
     await ledger.load();
     return ledger;
   }
@@ -23612,11 +23865,11 @@ async function propose(clusters, opts) {
     const signalKeys = cluster.signals.map(signalKey);
     const target = findTarget(cluster, opts.context);
     if (target) {
-      const path27 = target.kind === "skill" ? `${sourceDir}/skills/${target.node.name}/SKILL.md` : `${sourceDir}/rules/${target.node.name}.md`;
-      const before = await opts.read?.(path27) ?? null;
+      const path28 = target.kind === "skill" ? `${sourceDir}/skills/${target.node.name}/SKILL.md` : `${sourceDir}/rules/${target.node.name}.md`;
+      const before = await opts.read?.(path28) ?? null;
       const amended = appendGuidance(target.node.body, lesson);
       if (!amended) continue;
-      const content = before !== null ? serializeFrontmatter(parseFrontmatter(before, path27).data, amended) : target.kind === "skill" ? frontmatter(
+      const content = before !== null ? serializeFrontmatter(parseFrontmatter(before, path28).data, amended) : target.kind === "skill" ? frontmatter(
         {
           name: target.node.name,
           description: target.node.description,
@@ -23636,7 +23889,7 @@ async function propose(clusters, opts) {
         id: cluster.id,
         kind: target.kind === "skill" ? "amend-skill" : "amend-rule",
         lesson,
-        path: path27,
+        path: path28,
         target: target.node.name,
         taskCount: cluster.taskCount,
         evidence,
@@ -23894,7 +24147,7 @@ function renderChange(proposal) {
   return proposal.content.split("\n").filter((line) => line.trim() && !before.has(line)).map((line) => c.green(`+ ${line}`));
 }
 async function loadTrajectory(root, runId) {
-  const file = path21.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
+  const file = path22.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
   try {
     return Trajectory.from(JSON.parse(await fs19.readFile(file, "utf8")));
   } catch {
@@ -23902,7 +24155,7 @@ async function loadTrajectory(root, runId) {
   }
 }
 async function harvest(root, ledger) {
-  const store = new FileStore(path21.join(root, LEARN_DIR));
+  const store = new FileStore(path22.join(root, LEARN_DIR));
   let recorded = 0;
   let nearMisses = 0;
   const exemplars = [];
@@ -23932,13 +24185,13 @@ ${run3.task.body}`,
   return { recorded, exemplars, nearMisses };
 }
 async function learnCommand(args) {
-  const root = path21.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path22.resolve(flagString(args, "root") ?? process.cwd());
   const apply = flagBool(args, "apply");
   const rejectId = flagString(args, "reject");
   const reconsiderId = flagString(args, "reconsider");
   const showAll = flagBool(args, "all");
   const minTasks = flagNumber(args, "min-tasks", { default: 2, min: 1 });
-  const ledger = await Ledger.open(path21.join(root, LEARN_DIR));
+  const ledger = await Ledger.open(path22.join(root, LEARN_DIR));
   if (ledger.warning) {
     warn(`Could not read the existing ledger: ${ledger.warning}`);
     info("    " + c.dim("It has been kept as learn.json.corrupt. Starting from an empty ledger."));
@@ -23973,7 +24226,7 @@ async function learnCommand(args) {
   const result = await learn({
     ledger,
     context,
-    read: (p) => fs19.readFile(path21.resolve(root, p), "utf8").then((t) => t, () => null),
+    read: (p) => fs19.readFile(path22.resolve(root, p), "utf8").then((t) => t, () => null),
     cluster: { minTasks },
     includeDecided: showAll,
     exemplars: harvested.exemplars,
@@ -24058,7 +24311,7 @@ async function learnCommand(args) {
   const applied = [];
   let skipped = 0;
   for (const proposal of all) {
-    const abs = path21.resolve(root, proposal.path);
+    const abs = path22.resolve(root, proposal.path);
     const current = await fs19.readFile(abs, "utf8").then(
       (t) => t,
       () => null
@@ -24101,10 +24354,10 @@ async function learnCommand(args) {
 
 // packages/cli/src/commands/trace.ts
 import { promises as fs20 } from "node:fs";
-import * as path22 from "node:path";
+import * as path23 from "node:path";
 var TRACE_DIR = ".ctxmux/state/traces";
 async function load(root, runId) {
-  const file = path22.join(root, TRACE_DIR, `${encodeURIComponent(runId)}.json`);
+  const file = path23.join(root, TRACE_DIR, `${encodeURIComponent(runId)}.json`);
   try {
     return Trajectory.from(JSON.parse(await fs20.readFile(file, "utf8")));
   } catch {
@@ -24113,14 +24366,14 @@ async function load(root, runId) {
 }
 async function list(root) {
   try {
-    const files = await fs20.readdir(path22.join(root, TRACE_DIR));
+    const files = await fs20.readdir(path23.join(root, TRACE_DIR));
     return files.filter((f) => f.endsWith(".json")).map((f) => decodeURIComponent(f.replace(/\.json$/, "")));
   } catch {
     return [];
   }
 }
 async function traceCommand(args) {
-  const root = path22.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path23.resolve(flagString(args, "root") ?? process.cwd());
   const target = args.positionals[0];
   const limit = flagNumber(args, "limit", { default: 60, min: 1 });
   const onlyTools = flagBool(args, "tools");
@@ -24213,21 +24466,21 @@ init_src();
 import { spawn as spawn4 } from "node:child_process";
 import { promises as fs21 } from "node:fs";
 import * as os2 from "node:os";
-import * as path23 from "node:path";
+import * as path24 from "node:path";
 function run2(bin, args, cwd) {
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn4(bin, args, { ...cwd ? { cwd } : {}, windowsHide: true });
     let out = "";
     child.stdout.on("data", (d) => out += d);
     child.stderr.on("data", (d) => out += d);
-    child.on("error", () => resolve17({ code: 127, out }));
-    child.on("close", (code) => resolve17({ code: code ?? 1, out }));
+    child.on("error", () => resolve18({ code: 127, out }));
+    child.on("close", (code) => resolve18({ code: code ?? 1, out }));
   });
 }
 function resolveSpec(spec) {
   const trimmed = spec.trim();
   if (trimmed.startsWith(".") || trimmed.startsWith("/") || trimmed.startsWith("~")) {
-    return { kind: "local", url: trimmed, name: path23.basename(trimmed.replace(/\/$/, "")) };
+    return { kind: "local", url: trimmed, name: path24.basename(trimmed.replace(/\/$/, "")) };
   }
   const shorthand = /^(?:github:)?([\w.-]+)\/([\w.-]+?)(?:\.git)?$/.exec(trimmed);
   if (shorthand) {
@@ -24248,11 +24501,11 @@ function resolveSpec(spec) {
 async function fetchPack(spec) {
   const resolved = resolveSpec(spec);
   if (resolved.kind === "local") {
-    const dir2 = path23.resolve(resolved.url.replace(/^~/, os2.homedir()));
+    const dir2 = path24.resolve(resolved.url.replace(/^~/, os2.homedir()));
     await fs21.access(dir2);
     return { spec, dir: dir2, origin: dir2 };
   }
-  const dir = await fs21.mkdtemp(path23.join(os2.tmpdir(), "contextmux-pack-"));
+  const dir = await fs21.mkdtemp(path24.join(os2.tmpdir(), "contextmux-pack-"));
   const cloned = await run2("git", ["clone", "--depth", "1", "--quiet", resolved.url, dir]);
   if (cloned.code !== 0) {
     throw new Error(`Could not fetch ${resolved.url}: ${cloned.out.trim().split("\n").at(-1)}`);
@@ -24275,7 +24528,7 @@ function report(pack) {
   }
 }
 async function addCommand(args) {
-  const root = path23.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path24.resolve(flagString(args, "root") ?? process.cwd());
   const spec = args.positionals[0];
   const dryRun = flagBool(args, "dry-run", "n");
   const force = flagBool(args, "force", "f");
@@ -24360,7 +24613,7 @@ async function addCommand(args) {
 // packages/cli/src/commands/propose.ts
 init_src();
 import { promises as fs22 } from "node:fs";
-import * as path24 from "node:path";
+import * as path25 from "node:path";
 init_src();
 async function proposeCommand(args) {
   const root = flagString(args, "root") ?? process.cwd();
@@ -24417,13 +24670,13 @@ async function proposeCommand(args) {
   return 0;
 }
 async function writeProposals(root, proposals) {
-  const dir = path24.join(root, ".ctxmux", "rules");
+  const dir = path25.join(root, ".ctxmux", "rules");
   await fs22.mkdir(dir, { recursive: true });
   const wrote = [];
   const skipped = [];
   for (const p of proposals) {
-    const rel = path24.join(".ctxmux", "rules", `${p.name}.md`);
-    const abs = path24.join(root, rel);
+    const rel = path25.join(".ctxmux", "rules", `${p.name}.md`);
+    const abs = path25.join(root, rel);
     const exists3 = await fs22.access(abs).then(() => true).catch(() => false);
     if (exists3) {
       skipped.push(rel);
@@ -24445,9 +24698,9 @@ function renderRule(p) {
 
 // packages/cli/src/commands/handoff.ts
 import { promises as fs23 } from "node:fs";
-import * as path25 from "node:path";
+import * as path26 from "node:path";
 async function loadTrajectory2(root, runId) {
-  const file = path25.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
+  const file = path26.join(root, ".ctxmux/state/traces", `${encodeURIComponent(runId)}.json`);
   try {
     return Trajectory.from(JSON.parse(await fs23.readFile(file, "utf8")));
   } catch {
@@ -24455,7 +24708,7 @@ async function loadTrajectory2(root, runId) {
   }
 }
 async function handoffCommand(args) {
-  const root = path25.resolve(flagString(args, "root") ?? process.cwd());
+  const root = path26.resolve(flagString(args, "root") ?? process.cwd());
   const target = args.positionals[0];
   const tier = flagString(args, "tier") ?? "valuable";
   const show = flagString(args, "render") !== void 0 || flagString(args, "tier") !== void 0;
@@ -24466,7 +24719,7 @@ async function handoffCommand(args) {
     info("  ctxmux handoff T-1 --tier essential " + c.dim("render at a tier"));
     return 1;
   }
-  const store = new FileStore(path25.join(root, ".ctxmux", "state"));
+  const store = new FileStore(path26.join(root, ".ctxmux", "state"));
   const run3 = await store.load(target) ?? await store.load(`run-${target}`);
   if (!run3) {
     error(`No run "${target}".`);
@@ -24521,31 +24774,31 @@ async function handoffCommand(args) {
 import { spawn as spawn5 } from "node:child_process";
 import { promises as fs24 } from "node:fs";
 import * as os3 from "node:os";
-import * as path26 from "node:path";
+import * as path27 from "node:path";
 var STATE_DIR = ".ctxmux/state";
 var DEFAULT_BRANCH = "ctxmux-state";
 function git4(cwd, args) {
-  return new Promise((resolve17) => {
+  return new Promise((resolve18) => {
     const child = spawn5("git", args, { cwd, windowsHide: true });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => stdout += d);
     child.stderr.on("data", (d) => stderr += d);
-    child.on("error", (err) => resolve17({ code: 127, stdout, stderr: String(err) }));
-    child.on("close", (code) => resolve17({ code: code ?? 1, stdout, stderr }));
+    child.on("error", (err) => resolve18({ code: 127, stdout, stderr: String(err) }));
+    child.on("close", (code) => resolve18({ code: code ?? 1, stdout, stderr }));
   });
 }
 async function copyTree(from, to) {
   let copied = 0;
   const entries = await fs24.readdir(from, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
-    const src = path26.join(from, entry.name);
-    const dest = path26.join(to, entry.name);
+    const src = path27.join(from, entry.name);
+    const dest = path27.join(to, entry.name);
     if (entry.isDirectory()) {
       await fs24.mkdir(dest, { recursive: true });
       copied += await copyTree(src, dest);
     } else if (entry.isFile()) {
-      await fs24.mkdir(path26.dirname(dest), { recursive: true });
+      await fs24.mkdir(path27.dirname(dest), { recursive: true });
       await fs24.copyFile(src, dest);
       copied += 1;
     }
@@ -24554,13 +24807,13 @@ async function copyTree(from, to) {
 }
 function options(args) {
   return {
-    root: path26.resolve(flagString(args, "root") ?? process.cwd()),
+    root: path27.resolve(flagString(args, "root") ?? process.cwd()),
     branch: flagString(args, "branch") ?? DEFAULT_BRANCH,
     remote: flagString(args, "remote") ?? "origin"
   };
 }
 async function inStateWorktree(opts, fn) {
-  const dir = await fs24.mkdtemp(path26.join(os3.tmpdir(), "ctxmux-state-"));
+  const dir = await fs24.mkdtemp(path27.join(os3.tmpdir(), "ctxmux-state-"));
   await git4(opts.root, ["fetch", opts.remote, opts.branch, "--depth", "1"]).catch(() => {
   });
   const remoteHas = (await git4(opts.root, ["rev-parse", "--verify", `${opts.remote}/${opts.branch}`])).code === 0;
@@ -24582,7 +24835,7 @@ async function inStateWorktree(opts, fn) {
 }
 async function statePushCommand(args) {
   const opts = options(args);
-  const local = path26.join(opts.root, STATE_DIR);
+  const local = path27.join(opts.root, STATE_DIR);
   const files = await fs24.readdir(local).catch(() => null);
   if (files === null || files.length === 0) {
     warn("Nothing to push \u2014 no run state here yet.");
@@ -24592,12 +24845,12 @@ async function statePushCommand(args) {
   return inStateWorktree(opts, async (dir, existed) => {
     if (!existed) await git4(dir, ["checkout", "--orphan", opts.branch]);
     else await git4(dir, ["checkout", "-B", opts.branch]);
-    await fs24.rm(path26.join(dir, STATE_DIR), { recursive: true, force: true });
-    await fs24.mkdir(path26.join(dir, STATE_DIR), { recursive: true });
-    const copied = await copyTree(local, path26.join(dir, STATE_DIR));
+    await fs24.rm(path27.join(dir, STATE_DIR), { recursive: true, force: true });
+    await fs24.mkdir(path27.join(dir, STATE_DIR), { recursive: true });
+    const copied = await copyTree(local, path27.join(dir, STATE_DIR));
     for (const entry of await fs24.readdir(dir)) {
       if (entry === ".git" || entry === ".ctxmux") continue;
-      await fs24.rm(path26.join(dir, entry), { recursive: true, force: true });
+      await fs24.rm(path27.join(dir, entry), { recursive: true, force: true });
     }
     await git4(dir, ["add", "-A"]);
     const status = await git4(dir, ["status", "--porcelain"]);
@@ -24623,14 +24876,14 @@ async function statePushCommand(args) {
 }
 async function statePullCommand(args) {
   const opts = options(args);
-  const local = path26.join(opts.root, STATE_DIR);
+  const local = path27.join(opts.root, STATE_DIR);
   return inStateWorktree(opts, async (dir, existed) => {
     if (!existed) {
       warn(`No "${opts.branch}" branch on ${opts.remote} yet.`);
       info("    " + c.dim("It appears the first time somebody runs `ctxmux state push`."));
       return 0;
     }
-    const remote = path26.join(dir, STATE_DIR);
+    const remote = path27.join(dir, STATE_DIR);
     if (!await fs24.readdir(remote).catch(() => null)) {
       warn(`"${opts.branch}" exists but carries no state.`);
       return 0;
@@ -24661,6 +24914,7 @@ ${c.bold("COMMANDS")}
                   --depth single|panel also asks your agent; the default costs nothing
   doctor          Report anything that will fail silently
 
+  plan            Create a task on a tracker and stop \u2014 review and edit it before running it
   run             Drive a task to a proposed change, with gates and an isolated worktree
   status          Show recorded runs and what is waiting on you
   trace           Show what an agent actually did, step by step
@@ -24684,6 +24938,16 @@ ${c.bold("COMMON OPTIONS")}
   --explain           Print the fidelity report: what each target loses
   -h, --help          Show this
   -v, --version       Show version
+
+${c.bold("PLAN OPTIONS")}
+  --tracker <name>    file, github or jira \u2014 where the task is, or is created
+                      jira also needs JIRA_PROJECT_KEY set, to create one
+  --repo <owner/repo> Repository to bridge an existing task into
+  --agent <name>      New task: draft with claude or codex, read-only
+                      Existing task: bridge it to a GitHub issue, for any agent
+  --model <name>      Model for the drafting agent
+  --labels <list>     Comma-separated labels to apply to a newly created task
+  --title <text>      Override the title (default: the first line of the description)
 
 ${c.bold("RUN OPTIONS")}
   --agent <name>      claude, cursor, codex, local (driven) or copilot (delegated)
@@ -24711,6 +24975,8 @@ ${c.bold("EVAL OPTIONS")}
   --concurrent        Run agents at once (distorts wall-clock figures)
 
 ${c.bold("EXAMPLES")}
+  ctxmux plan "add a currency formatter" --tracker github --agent codex
+  ctxmux plan PDC-1234 --tracker jira --agent codex --repo owner/name   ${c.dim("# bridge to GitHub, stop")}
   ctxmux run T-1 --allow "src/**"
   ctxmux run ABC-1234 --tracker jira --agent copilot
   ctxmux run T-1 --agents claude,codex        ${c.dim("# hand over if the first gives up")}
@@ -24752,6 +25018,8 @@ async function main() {
       return doctorCommand(args);
     case "map":
       return mapCommand(args);
+    case "plan":
+      return planCommand(args);
     case "run":
       return runCommand(args);
     case "status":

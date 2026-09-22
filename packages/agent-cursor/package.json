@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/agent-cursor",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides cursor as a driven agent for contextmux.",
   "license": "Apache-2.0",
   "type": "module",

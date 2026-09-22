@@ -18,6 +18,8 @@ class FakeJira implements JiraTransport {
     { id: '31', name: 'Ready for review', to: { name: 'In Review' } },
     { id: '41', name: 'Complete', to: { name: 'Done' } },
   ]
+  /** Issues `create` has filed, keyed the same way Jira keys them. */
+  private readonly created = new Map<string, { key: string; fields: Record<string, unknown> }>()
 
   async request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
     this.calls.push({ method, path, body })
@@ -27,6 +29,13 @@ class FakeJira implements JiraTransport {
     }
     if (path === 'myself') {
       return { accountId: this.accountId } as T
+    }
+    if (path === 'issue' && method === 'POST') {
+      const fields = (body as { fields: Record<string, unknown> }).fields
+      const project = (fields['project'] as { key?: string } | undefined)?.key ?? 'NEW'
+      const key = `${project}-${this.created.size + 1}`
+      this.created.set(key, { key, fields })
+      return { key } as T
     }
     if (/^issue\/[^/]+\/assignee$/.test(path)) {
       this.assignee = (body as { accountId: string }).accountId
@@ -52,8 +61,20 @@ class FakeJira implements JiraTransport {
     }
     if (path.startsWith('issue/')) {
       const key = decodeURIComponent(path.slice('issue/'.length).split('?')[0]!)
-      if (key !== 'ABC-1') throw new JiraError('Issue does not exist', 404)
-      return this.issue() as T
+      if (key === 'ABC-1') return this.issue() as T
+      const own = this.created.get(key)
+      if (own) {
+        return {
+          key: own.key,
+          fields: {
+            summary: own.fields['summary'],
+            status: { name: 'To Do' },
+            labels: own.fields['labels'] ?? [],
+            description: own.fields['description'],
+          },
+        } as T
+      }
+      throw new JiraError('Issue does not exist', 404)
     }
     throw new JiraError(`no route for ${method} ${path}`, 404)
   }
@@ -92,6 +113,7 @@ const trackerFor = (transport: FakeJira) =>
     jql: 'project = PDC AND labels = "agent-ok"',
     estimateField: 'customfield_10016',
     browseBaseUrl: 'https://team.atlassian.net',
+    projectKey: 'PDC',
   })
 
 describe('JiraTracker contract', () => {

@@ -11,11 +11,12 @@
  */
 import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
-import { parse as parseYaml } from 'yaml'
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import {
   extractAcceptanceCriteria,
   writeFileAtomic,
   type SemanticState,
+  type TaskDraft,
   type TaskSpec,
   type Tracker,
 } from '@contextmux/core'
@@ -99,6 +100,16 @@ export function setFrontmatterField(raw: string, key: string, value: string): st
   const field = new RegExp(`^${key}:[^\\n]*$`, 'm')
 
   return `---\n${field.test(front) ? front.replace(field, line) : `${line}\n${front}`}${rest}`
+}
+
+/** A filesystem- and id-safe slug from a title, for naming the file `create` writes. */
+function slugify(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+  return slug || 'task'
 }
 
 function toArray(v: unknown): string[] {
@@ -221,6 +232,38 @@ export class FileTracker implements Tracker {
 
     const raw = await fs.readFile(filePath, 'utf8')
     await writeFileAtomic(filePath, setFrontmatterField(raw, 'labels', `[${[...current].join(', ')}]`))
+  }
+
+  /**
+   * Write a new task file and return it as `get` would.
+   *
+   * The filename is a slug of the title rather than a random id, because these files live in a
+   * pull request like any other and a name that says nothing is what makes review of that diff
+   * unpleasant. Collisions get a numeric suffix instead of overwriting — a title reused a week
+   * later is an ordinary thing to type, and silently replacing the earlier task would discard
+   * work somebody may still be reading.
+   */
+  async create(draft: TaskDraft): Promise<TaskSpec> {
+    await fs.mkdir(this.dir, { recursive: true })
+
+    const base = slugify(draft.title)
+    const existing = new Set((await this.files()).map((f) => path.basename(f, '.md')))
+    let id = base
+    for (let n = 2; existing.has(id); n++) id = `${base}-${n}`
+
+    const frontmatter: Record<string, unknown> = {
+      title: draft.title,
+      status: 'todo',
+      ...(draft.labels?.length ? { labels: draft.labels } : {}),
+      ...(draft.acceptanceCriteria?.length ? { acceptanceCriteria: draft.acceptanceCriteria } : {}),
+    }
+
+    const filePath = path.join(this.dir, `${id}.md`)
+    await writeFileAtomic(filePath, `---\n${stringifyYaml(frontmatter)}---\n\n${draft.body.trim()}\n`)
+
+    const created = await this.get(id)
+    if (!created) throw new Error(`wrote ${filePath} but could not read it back`)
+    return created
   }
 
   /**

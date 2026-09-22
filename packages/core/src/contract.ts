@@ -35,7 +35,7 @@ export interface TrackerContractOptions {
    * Skip checks the adapter genuinely cannot support. Every skip is a documented gap, not a
    * quiet omission.
    */
-  skip?: Array<'transition' | 'comment' | 'labels' | 'listReady'>
+  skip?: Array<'transition' | 'comment' | 'labels' | 'listReady' | 'create'>
 }
 
 export function runTrackerContract(harness: TestHarness, opts: TrackerContractOptions): void {
@@ -115,6 +115,41 @@ export function runTrackerContract(harness: TestHarness, opts: TrackerContractOp
     it('contract: removing an absent label is not an error', async () => {
       const { tracker, taskId } = await opts.setup()
       await tracker.setLabels(taskId, [], ['never-applied-label'])
+    })
+  }
+
+  if (!skip.has('create')) {
+    it('contract: create returns a task that get can then find', async () => {
+      // The commonest way this goes wrong: creation succeeds against the vendor's API but
+      // returns something that does not round-trip — an id in the wrong shape, a url instead
+      // of an id, a differently-cased key. A caller that cannot look the task back up cannot
+      // hand it to `ctxmux run` a moment later.
+      const { tracker } = await opts.setup()
+      if (!tracker.create) return
+      const created = await tracker.create({
+        title: 'contract: a task this suite created',
+        body: 'Body written by the tracker contract suite.',
+      })
+      expect(typeof created.id).toBe('string')
+      expect(created.origin.tracker).toBe(tracker.id)
+      expect(await tracker.get(created.id)).toBeTruthy()
+    })
+
+    it('contract: create carries the acceptance criteria and labels given to it', async () => {
+      const { tracker } = await opts.setup()
+      if (!tracker.create) return
+      const created = await tracker.create({
+        title: 'contract: criteria and labels round-trip',
+        body: 'Body written by the tracker contract suite.',
+        acceptanceCriteria: ['the thing this suite asked for is true'],
+        labels: ['contract-create'],
+      })
+      const fetched = await tracker.get(created.id)
+      expect(fetched).toBeTruthy()
+      expect(fetched!.acceptanceCriteria.map((a) => a.text)).toContain(
+        'the thing this suite asked for is true',
+      )
+      expect(fetched!.labels).toContain('contract-create')
     })
   }
 }

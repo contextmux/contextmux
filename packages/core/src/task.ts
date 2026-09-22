@@ -49,6 +49,21 @@ export interface TaskSpec {
   attachments?: Array<{ name: string; url?: string; localPath?: string }>
 }
 
+/**
+ * What it takes to originate a task, before a tracker has assigned it an id.
+ *
+ * Deliberately narrower than `TaskSpec`: an id, a url and an origin only exist once the tracker
+ * has created something, so a draft cannot carry them. `acceptanceCriteria` is plain strings
+ * here rather than `AcceptanceCriterion[]` because nothing has parsed anything yet — the caller
+ * is stating them, not extracting them from a body a tracker rendered.
+ */
+export interface TaskDraft {
+  title: string
+  body: string
+  acceptanceCriteria?: string[]
+  labels?: string[]
+}
+
 /** Semantic tracker states. Adapters map these to whatever a given project calls them. */
 export type SemanticState = 'todo' | 'in_progress' | 'in_review' | 'done' | 'blocked'
 

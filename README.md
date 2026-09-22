@@ -191,6 +191,51 @@ The second builds on the first and is optional — stopping here is a complete u
 Everything here is reversible. The agent works in a git worktree, never your checkout, and
 `--dry-run` spends nothing.
 
+### Planning before you run
+
+`ctxmux run` reads a task that already exists; it does not have to be the one that creates it.
+`ctxmux plan` gets a task ready for an agent and stops there — no worktree, no agent budget
+spent, nothing touches your checkout, nobody is assigned anything. It does one of two things,
+depending on whether what you named already exists:
+
+**Nothing by that name yet** — originate a task from a rough description, on the tracker you ask
+for:
+
+```bash
+ctxmux plan "add a currency formatting helper" --tracker github
+# ...review and edit the issue on github.com, add or correct acceptance criteria...
+ctxmux run 42 --tracker github --agent codex --model o3
+```
+
+`--agent` here is optional and read-only: it asks that agent to turn a rough sentence into a
+fuller description and acceptance criteria (the same ask-only capability `advise` uses to review
+`.ctxmux/` without editing it), but nothing it writes is treated as final until you have looked at
+it. Skip `--agent` and the description you typed becomes the task body as-is.
+
+**Already exists, and `--agent` names one** — bridge it to a GitHub issue and stop there:
+
+```bash
+ctxmux plan PDC-1234 --tracker jira --agent codex --repo owner/name
+# opens a GitHub issue mirroring PDC-1234's title, body and labels — assigns nobody
+# ...review the mirrored issue, correct anything it got wrong...
+ctxmux run <that issue number> --tracker github --agent codex
+```
+
+A GitHub issue is the review surface every run reports back to (`--open-pr`, `status`, `trace`),
+regardless of which agent ends up doing the work — so bridging applies the same way for a driven
+agent like `codex` as for `copilot`, whose coding agent has no other way to receive a task at all;
+for Copilot, bridging is not a convenience, it is the only path there is. Naming no agent, or one
+where the task is already on GitHub, leaves it alone and just tells you it is ready to `run`.
+
+| Flag | Meaning |
+| --- | --- |
+| `--tracker <name>` | Where the task is (or will be created): `file` *(default)*, `github` or `jira` (jira also needs `JIRA_PROJECT_KEY`) |
+| `--agent <name>` | Draft a new task with `claude`/`codex` (read-only); bridges an existing one to GitHub for any agent |
+| `--model <name>` | Model for the drafting agent |
+| `--labels <list>` | Comma-separated labels to apply to a newly created task |
+| `--title <text>` | Override the title (default: the first line of what you typed) |
+| `--repo <owner/repo>` | Repository to bridge into, when bridging |
+
 | Guarantee | What it means |
 | --- | --- |
 | **Path scope** | Which files this task may touch. Checked against the diff, not the prompt. |
@@ -231,6 +276,23 @@ ctxmux run T-1 --agent copilot
 > Only the Claude adapter has been run against its real CLI. `cursor`, `codex` and `local` were
 > written from documentation; `preflight` says so.
 
+#### Choosing a model
+
+`--model <name>` picks the model for `claude`, `cursor`, `codex` and `local` — it is forwarded
+straight to the vendor's own CLI (`claude --model`, `cursor-agent --model`, `codex exec --model`),
+so any name that CLI accepts works here:
+
+```bash
+ctxmux run T-1 --agent codex --model o3
+ctxmux run T-1 --agent cursor --model sonnet-4.5
+```
+
+`copilot` is the exception: its coding agent is an assignment (create an issue, assign a bot),
+and GitHub's API for that has no model parameter at all — the model is a setting on
+github.com (**Settings → Copilot → coding agent**), not something any per-run flag can carry.
+Passing `--model` with `--agent copilot` fails fast and points at that settings page, rather than
+silently doing nothing.
+
 ### Choosing a tracker
 
 | Tracker | Where tasks live | Needs |
@@ -246,6 +308,10 @@ export JIRA_API_TOKEN='...'
 
 ctxmux run ABC-1234 --tracker jira --dry-run
 ```
+
+`ctxmux plan --tracker jira` additionally needs `JIRA_PROJECT_KEY` (e.g. `ABC`), since a new
+ticket has no key yet for `plan` to infer a project from — every other Jira operation addresses
+one that already has a key. `JIRA_ISSUE_TYPE` defaults to `Task`.
 
 ### When it stops
 
@@ -280,6 +346,7 @@ rule.
 | `ctxmux advise` | Review the rules themselves (free); `--depth` is opt-in and costs |
 | `ctxmux propose` | Ask a council of agents what rules this repository should have |
 | `ctxmux map` | Query the repository index |
+| `ctxmux plan` | Create a task on a tracker and stop — review and edit it before running it |
 | `ctxmux run` | Drive a task to a proposed change, under gates |
 | `ctxmux status` / `trace` / `event` | Runs, steps, forge webhooks |
 | `ctxmux eval` / `learn` / `add` / `handoff` / `state` | Compare, recur, packs, transfer, share state |
@@ -306,9 +373,9 @@ The CLI is `contextmux`. Libraries include `@contextmux/context`, `@contextmux/r
 **Contacts:** `api.github.com`, and the Jira site you configure. Nothing else. No telemetry.
 
 **Reads** (by name): `ANTHROPIC_API_KEY`; `GITHUB_TOKEN` / `GH_TOKEN`; `JIRA_URL` /
-`JIRA_EMAIL` / `JIRA_API_TOKEN`; `CTXMUX_REPO` / `CTXMUX_AGENT` / `CTXMUX_TRACKER`; GitHub Action
-vars; `CTXMUX_ROOT`; `OLLAMA_HOST` / `CTXMUX_LOCAL_MODEL`; optional OTEL endpoints; `NO_COLOR` /
-`TERM` / `CTXMUX_DEBUG`.
+`JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` / `JIRA_ISSUE_TYPE`; `CTXMUX_REPO` /
+`CTXMUX_AGENT` / `CTXMUX_TRACKER`; GitHub Action vars; `CTXMUX_ROOT`; `OLLAMA_HOST` /
+`CTXMUX_LOCAL_MODEL`; optional OTEL endpoints; `NO_COLOR` / `TERM` / `CTXMUX_DEBUG`.
 
 **Writes:** `.ctxmux/`, generated agent files, and a git worktree under system temp.
 

@@ -13,7 +13,7 @@
  */
 export * from './adf.js'
 
-import { extractAcceptanceCriteria, type SemanticState, type TaskSpec, type Tracker } from '@contextmux/core'
+import { extractAcceptanceCriteria, type SemanticState, type TaskDraft, type TaskSpec, type Tracker } from '@contextmux/core'
 import { adfToMarkdown, markdownToAdf, type AdfDocument } from './adf.js'
 
 export interface JiraTransport {
@@ -143,6 +143,14 @@ export interface JiraTrackerOptions {
   defaultScope?: { allow?: string[]; deny?: string[]; maxFiles?: number }
   defaultQualityGate?: string[]
   browseBaseUrl?: string
+  /**
+   * Project `create` files a new issue under. Not required for the read/transition surface,
+   * which addresses an issue that already carries its project in its key — only `create` needs
+   * to be told where to file one that does not exist yet.
+   */
+  projectKey?: string
+  /** Issue type `create` files under. 'Task' matches an unconfigured project's defaults. */
+  issueType?: string
 }
 
 export class JiraTracker implements Tracker {
@@ -293,6 +301,45 @@ export class JiraTracker implements Tracker {
         labels: [...add.map((l) => ({ add: l })), ...remove.map((l) => ({ remove: l }))],
       },
     })
+  }
+
+  /**
+   * File a new issue and return it as `get` would.
+   *
+   * Requires `projectKey`: unlike every other method here, which addresses an issue that
+   * already carries its project in its key (`ABC-123`), there is nothing in a draft that says
+   * which project a new one belongs to. Failing here, with a message naming the option, beats
+   * a 400 from Jira three lines into a request that names neither.
+   *
+   * Acceptance criteria have no field of their own on a Jira issue, so — as for the GitHub
+   * tracker — they are rendered into the body under a heading `extractAcceptanceCriteria`
+   * already recognises, the same round trip an issue a human wrote by hand goes through.
+   */
+  async create(draft: TaskDraft): Promise<TaskSpec> {
+    if (!this.opts.projectKey) {
+      throw new JiraError(
+        'Cannot create a Jira issue without knowing which project it belongs to. Set projectKey on the tracker.',
+        400,
+      )
+    }
+
+    const body = draft.acceptanceCriteria?.length
+      ? `${draft.body.trim()}\n\n## Acceptance Criteria\n\n${draft.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}\n`
+      : draft.body
+
+    const created = await this.opts.transport.request<{ key: string }>('POST', 'issue', {
+      fields: {
+        project: { key: this.opts.projectKey },
+        issuetype: { name: this.opts.issueType ?? 'Task' },
+        summary: draft.title,
+        description: markdownToAdf(body),
+        ...(draft.labels?.length ? { labels: draft.labels } : {}),
+      },
+    })
+
+    const spec = await this.get(created.key)
+    if (!spec) throw new JiraError(`created ${created.key} but could not read it back`, 500)
+    return spec
   }
 }
 

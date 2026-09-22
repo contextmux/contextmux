@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/context",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides canonical agent-context model and compilers for Claude Code, Copilot, Cursor and Codex.",
   "license": "Apache-2.0",
   "type": "module",

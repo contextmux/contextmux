@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/tracker-file",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides file-based task specs for contextmux.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides file-based task specs for contextmux.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@contextmux/core": "workspace:*",
-    "yaml": "^2.6.1"
+    "yaml": "^2.9.1"
   },
   "publishConfig": {
     "access": "public"

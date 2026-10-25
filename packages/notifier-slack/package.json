@@ -1,6 +1,6 @@
 {
   "name": "@contextmux/notifier-slack",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Internal to contextmux — install `contextmux` instead. Provides Slack as a contextmux notifier.",
   "license": "Apache-2.0",
   "type": "module",

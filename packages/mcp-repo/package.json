@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/mcp-repo",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides mCP server exposing an contextmux repository index as tools.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides mCP server exposing an contextmux repository index as tools.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@contextmux/repo": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "zod": "^3.25.76"
   },
   "publishConfig": {

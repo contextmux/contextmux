@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/agent-local",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides drive a locally-hosted model as a coding agent, at zero marginal cost.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides drive a locally-hosted model as a coding agent, at zero marginal cost.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

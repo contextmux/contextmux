@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/tracker-github",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides gitHub Issues as an contextmux tracker.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides gitHub Issues as an contextmux tracker.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

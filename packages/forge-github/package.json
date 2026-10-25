@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/forge-github",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides gitHub issues, pull requests and reviews for contextmux.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides gitHub issues, pull requests and reviews for contextmux.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

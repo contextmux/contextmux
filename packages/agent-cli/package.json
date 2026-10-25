@@ -1,7 +1,7 @@
 {
   "name": "@contextmux/agent-cli",
-  "version": "0.5.1",
-  "description": "Internal to contextmux \u2014 install `contextmux` instead. Provides shared machinery for CLI-driven coding agents.",
+  "version": "0.5.2",
+  "description": "Internal to contextmux — install `contextmux` instead. Provides shared machinery for CLI-driven coding agents.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
